@@ -23,9 +23,10 @@ def best_average(series: pd.Series, window_minutes: int, label: str = "") -> flo
     window_s = window_minutes * 60
     if len(resampled) < window_s:
         return float("nan")
-    return float(
-        resampled.rolling(window=window_s, min_periods=window_s).mean().max()
-    )
+    # Use time-based offset string rather than integer window — integer windows
+    # on a DatetimeIndex with freq set behave inconsistently across pandas versions.
+    result = resampled.rolling(f"{window_s}s").mean().max()
+    return float(result) if pd.notna(result) else float("nan")
 
 
 def compute_curve(series: pd.Series, value_key: str) -> list[dict]:
@@ -38,7 +39,7 @@ def compute_curve(series: pd.Series, value_key: str) -> list[dict]:
     out = []
     for d in CURVE_DURATIONS:
         if len(resampled) >= d:
-            best = resampled.rolling(window=d, min_periods=d).mean().max()
+            best = resampled.rolling(f"{d}s").mean().max()
             out.append({"duration_s": d, value_key: round(float(best), 1)})
     return out
 

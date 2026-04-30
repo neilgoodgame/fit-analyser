@@ -24,8 +24,11 @@ htmlcov/
 # PyCharm
 .idea/
 
-# FIT files (binary, not for version control)
+# FIT files (personal activity data — do not commit)
 *.fit
+
+# Except test fixtures
+!tests/fixtures/*.fit
 
 # OS
 .DS_Store

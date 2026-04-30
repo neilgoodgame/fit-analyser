@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "fit-analyser"
+version = "0.1.0"
+description = "Garmin FIT file analysis tool — HR, power, elevation, heat stress and HTML reports"
+authors = ["Neil"]
+readme = "README.md"
+packages = [{ include = "fit_analyser" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fitparse = "^1.2.0"
+pandas = "^2.2.0"
+numpy = "^1.26.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+pytest-cov = "^5.0.0"
+
+[tool.poetry.scripts]
+fit-analyser      = "fit_analyser.cli:main"
+generate-hr-zones = "fit_analyser.generate_hr_zones:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=fit_analyser --cov-report=term-missing -v"
+
+[tool.coverage.run]
+source = ["fit_analyser"]
+omit = ["fit_analyser/report.py"]   # HTML template; logic tested via integration
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

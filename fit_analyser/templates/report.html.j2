@@ -1,0 +1,786 @@
+{% macro stat_card(label, value, unit="") %}{% if value is not none %}<div class="stat"><div class="stat-label">{{ label }}</div><div class="stat-value">{{ value }}<span class="stat-unit">{{ unit }}</span></div></div>{% endif %}{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ sport_label }} — Activity Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c26;
+    --surface2:  #1e2332;
+    --border:    #2a3048;
+    --accent:    #4f8ef7;
+    --accent2:   #34c98a;
+    --text:      #e8eaf0;
+    --muted:     #7a84a0;
+    --hr-color:  #f7694f;
+    --pwr-color: #4f8ef7;
+    --radius:    10px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem 1.5rem 4rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left { display: flex; align-items: center; gap: 1rem; }
+
+  .sport-badge {
+    font-size: 2.2rem;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+
+  h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; }
+  .subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  .section { margin-bottom: 2.5rem; }
+
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+  }
+
+  .stat-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-value { font-size: 1.5rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .stat-unit  { font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 2px; }
+
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.25rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .chart-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  canvas { display: block; width: 100% !important; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-family: 'DM Mono', monospace;
+  }
+
+  th {
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .insight {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+  }
+  .insight strong { color: var(--accent); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 600px) {
+    .two-col { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="sport-badge">{{ sport_icon }}</div>
+    <div>
+      <h1>{{ sport_label }}</h1>
+      <div class="subtitle">{{ start_time }} &nbsp;·&nbsp; {{ filename }}</div>
+    </div>
+  </div>
+</header>
+
+<!-- Overview stats -->
+<div class="section">
+  <div class="section-title">Overview</div>
+  <div class="stat-grid">
+    {{ stat_card("Duration", duration_fmt) }}
+    {{ stat_card("Distance", distance_fmt) }}
+    {{ stat_card("Calories", calories, "kcal") }}
+    {{ stat_card("Avg Heart Rate", avg_hr, "bpm") }}
+    {{ stat_card("Max Heart Rate", max_hr, "bpm") }}
+    {{ stat_card("Avg Power", avg_pwr, "W") }}
+    {{ stat_card("Max Power", max_pwr, "W") }}
+    {% if has_stryd_ambient %}
+    {{ stat_card("Ambient Temp", stryd_temp_avg, "°C") }}
+    {{ stat_card("Ambient Humidity", stryd_hum_avg, "%") }}
+    {% endif %}
+    {{ stat_card("Ascent", total_ascent, "m") }}
+    {{ stat_card("Descent", total_descent, "m") }}
+  </div>
+</div>
+
+<!-- Activity trace -->
+<div class="section">
+  <div class="section-title">Activity trace</div>
+  {% if has_hr %}
+  <div class="chart-wrap">
+    <div class="chart-title">Heart rate over time</div>
+    <div style="position:relative;height:160px;"><canvas id="hrTrace"></canvas></div>
+    {% if hr_dropout_count > 0 %}
+    <p style="font-size:0.72rem;color:var(--muted);margin-top:0.5rem;">⚠ {{ hr_dropout_count }} missing HR samples detected (gaps ≤60s interpolated for display). Likely HRM strap contact issue at activity start.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if has_power %}
+  <div class="chart-wrap">
+    <div class="chart-title">Power over time</div>
+    <div style="position:relative;height:160px;"><canvas id="pwrTrace"></canvas></div>
+  </div>
+  {% endif %}
+</div>
+
+{% if has_elevation %}
+<!-- Elevation profile -->
+<div class="section">
+  <div class="section-title">Elevation profile</div>
+  <div class="chart-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.5rem;">
+      <div class="chart-title" style="margin-bottom:0;">Altitude vs distance</div>
+      <span style="font-size:0.75rem;color:var(--muted);">{{ elev_min|int }} m – {{ elev_max|int }} m</span>
+    </div>
+    <div style="position:relative;height:180px;"><canvas id="elevChart"></canvas></div>
+  </div>
+</div>
+{% endif %}
+
+{% if has_hr %}
+<!-- HR stats -->
+<div class="section">
+  <div class="section-title">Heart rate</div>
+  <div class="stat-grid">
+    {{ stat_card("Average", avg_hr, "bpm") }}
+    {{ stat_card("Peak", max_hr, "bpm") }}
+    {{ stat_card("20-min best", b20_hr, "bpm") }}
+    {{ stat_card("60-min best", b60_hr, "bpm") }}
+  </div>
+</div>
+{% endif %}
+
+{% if has_power %}
+<!-- Power stats -->
+<div class="section">
+  <div class="section-title">Power <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:0.7rem;color:var(--muted);">({{ power_source }})</span></div>
+  <div class="stat-grid">
+    {{ stat_card("Average", avg_pwr, "W") }}
+    {{ stat_card("Peak", max_pwr, "W") }}
+    {{ stat_card("20-min best", b20_pwr, "W") }}
+    {{ stat_card("60-min best", b60_pwr, "W") }}
+  </div>
+  {% if ftp_est %}
+  <p class="insight">💡 Implied FTP estimate (20-min best × 0.95): <strong>{{ ftp_est }} W</strong></p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if has_lr %}
+<!-- L/R balance -->
+<div class="section">
+  <div class="section-title">Left / right power balance</div>
+  <div class="chart-wrap">
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem;">
+      <span style="font-family:'DM Mono',monospace;font-size:1.1rem;font-weight:600;color:#4f8ef7;">L {{ avg_left }}%</span>
+      <div style="flex:1;height:14px;background:#2a3048;border-radius:7px;overflow:hidden;">
+        <div style="height:100%;width:{{ avg_left }}%;background:linear-gradient(90deg,#4f8ef7 0%,#f7694f 100%);border-radius:7px;"></div>
+      </div>
+      <span style="font-family:'DM Mono',monospace;font-size:1.1rem;font-weight:600;color:#f7694f;">R {{ avg_right }}%</span>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);">Session average — {{ balance_note }}</p>
+    <div class="chart-title" style="margin-top:1rem;">Balance over time</div>
+    <div style="position:relative;height:140px;"><canvas id="lrTrace"></canvas></div>
+  </div>
+</div>
+{% endif %}
+
+{% if has_temp %}
+<!-- Temperature & heat -->
+<div class="section">
+  <div class="section-title">Temperature &amp; heat</div>
+  <div class="stat-grid" style="margin-bottom:1rem;">
+    {% if has_core %}
+    {{ stat_card("Core start", core_min, "°C") }}
+    {{ stat_card("Core avg",   core_avg, "°C") }}
+    {{ stat_card("Core peak",  core_max, "°C") }}
+    {% endif %}
+    {% if has_skin %}
+    {{ stat_card("Skin avg",  skin_avg, "°C") }}
+    {{ stat_card("Skin peak", skin_max, "°C") }}
+    {% endif %}
+    {% if has_hsi %}
+    {{ stat_card("Heat strain avg", hsi_avg) }}
+    {{ stat_card("Heat strain max", hsi_max) }}
+    {% endif %}
+  </div>
+  <div class="chart-wrap">
+    {% if has_core or has_skin %}
+    <div class="chart-title">Core &amp; skin temperature over time</div>
+    <div style="position:relative;height:160px;"><canvas id="tempTrace"></canvas></div>
+    {% endif %}
+    {% if has_hsi %}
+    <div class="chart-title" style="margin-top:1rem;">Heat strain index over time</div>
+    <div style="position:relative;height:130px;"><canvas id="hsiTrace"></canvas></div>
+    {% endif %}
+  </div>
+  {% if heat_stress %}
+  {% set hs = heat_stress %}
+  {% set dominant = hs.dominant %}
+  <div style="margin-top:1rem;padding:1rem;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border);">
+    <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">Cumulative heat stress</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:1rem;">
+      <div class="stat" style="border:none;background:var(--surface);">
+        <div class="stat-label">Total HSI·min</div>
+        <div class="stat-value">{{ hs.hsi_min }}</div>
+      </div>
+      <div class="stat" style="border:none;background:var(--surface);">
+        <div class="stat-label">Peak 60s HSI</div>
+        <div class="stat-value">{{ hs.peak_60s }}</div>
+      </div>
+      <div class="stat" style="border:none;background:var(--surface);">
+        <div class="stat-label">Active window</div>
+        <div class="stat-value">{{ hs.active_min }}<span class="stat-unit">min</span></div>
+      </div>
+      <div class="stat" style="border:none;background:var(--surface);border-left:3px solid {{ dominant.color }} !important;">
+        <div class="stat-label">Dominant zone</div>
+        <div class="stat-value" style="font-size:1.1rem;color:{{ dominant.color }};">Zone {{ dominant.zone }}</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">{{ dominant.label }}</div>
+      </div>
+    </div>
+    <table style="width:100%;font-size:0.82rem;font-family:'DM Mono',monospace;border-collapse:collapse;">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:500;font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Zone</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:500;font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Description</th>
+        <th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Time</th>
+        <th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">%</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--border);"></th>
+        <th style="text-align:right;padding:4px 8px;color:var(--muted);font-weight:500;font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Contribution</th>
+      </tr></thead>
+      <tbody>
+        {% for z in hs.zones %}
+        {% set bar_pct = [z.pct, 100] | min %}
+        <tr>
+          <td style="padding:6px 8px;border-bottom:1px solid var(--border);">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{{ z.color }};margin-right:6px;vertical-align:middle;"></span>
+            Zone {{ z.zone }}
+          </td>
+          <td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-size:0.8rem;">{{ z.label }}</td>
+          <td style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);">{{ z.mins }} min</td>
+          <td style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);">{{ z.pct }}%</td>
+          <td style="padding:6px 12px 6px 8px;border-bottom:1px solid var(--border);min-width:100px;">
+            <div style="background:#2a3048;border-radius:3px;height:6px;overflow:hidden;">
+              <div style="height:100%;width:{{ bar_pct }}%;background:{{ z.color }};border-radius:3px;"></div>
+            </div>
+          </td>
+          <td style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted);">{{ z.hsi_min }} HSI·min</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;">HSI·min = area under the heat strain index curve (excl. {{ hs.init_min }} min sensor initialisation). Zones per Garmin HRM-Pro guidance: Zone 1 (0–0.9), Zone 2 (1–2.9), Zone 3 (3–6.9), Zone 4 (7–10).</p>
+  </div>
+  {% endif %}
+  {% if has_stryd_ambient %}
+  <div class="chart-wrap" style="margin-top:1rem;">
+    <div class="chart-title">Stryd ambient conditions</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:1rem;">
+      {% if stryd_temp_avg is not none %}
+      <div class="stat" style="border:none;background:var(--surface2);">
+        <div class="stat-label">Ambient temp</div>
+        <div class="stat-value">{{ stryd_temp_avg }}<span class="stat-unit">°C</span></div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">{{ stryd_temp_start }}°C → {{ stryd_temp_end }}°C</div>
+      </div>
+      {% endif %}
+      {% if stryd_hum_avg is not none %}
+      <div class="stat" style="border:none;background:var(--surface2);">
+        <div class="stat-label">Ambient humidity</div>
+        <div class="stat-value">{{ stryd_hum_avg }}<span class="stat-unit">%</span></div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">{{ stryd_hum_start }}% → {{ stryd_hum_end }}%</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if stryd_temp_avg is not none or stryd_hum_avg is not none %}
+    <div style="position:relative;height:130px;"><canvas id="strydAmbientTrace"></canvas></div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if laps %}
+<!-- Laps -->
+<div class="section">
+  <div class="section-title">Laps ({{ laps | length }})</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Duration</th><th>Distance</th><th>Avg HR</th>
+        {% if is_run %}<th>Avg Pace</th>{% endif %}
+        {% if has_power %}<th>Avg Power</th>{% endif %}
+      </tr></thead>
+      <tbody>
+        {% for lap in laps %}
+        <tr>
+          <td>{{ lap.num }}</td>
+          <td>{{ lap.duration }}</td>
+          <td>{{ lap.distance }}</td>
+          <td>{{ lap.avg_hr }}</td>
+          {% if is_run %}<td>{{ lap.pace }}</td>{% endif %}
+          {% if has_power %}<td>{{ lap.avg_power }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Duration curves -->
+<div class="section">
+  <div class="section-title">Duration curves</div>
+  <div class="two-col">
+    {% if has_hr %}
+    <div class="chart-wrap">
+      <div class="chart-title">Heart rate duration curve</div>
+      <div style="position:relative;height:220px;"><canvas id="hdcChart"></canvas></div>
+    </div>
+    {% endif %}
+    {% if has_power %}
+    <div class="chart-wrap">
+      <div class="chart-title">Power duration curve <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">({{ power_source }})</span></div>
+      <div style="position:relative;height:220px;"><canvas id="pdcChart"></canvas></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if has_hr_zones %}
+<!-- HR zone distribution -->
+<div class="section">
+  <div class="section-title">Heart rate zones</div>
+  <div class="two-col">
+    <div class="chart-wrap">
+      <div class="chart-title">Time in zone</div>
+      <div style="position:relative;height:220px;"><canvas id="zoneBarChart"></canvas></div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Zone distribution</div>
+      <div style="position:relative;height:220px;"><canvas id="zoneDoughnut"></canvas></div>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:1rem;">
+    <table>
+      <thead><tr>
+        <th>Zone</th><th>Description</th><th>Range</th>
+        <th style="text-align:right;">Time</th><th style="text-align:right;">%</th>
+      </tr></thead>
+      <tbody>
+        {% for z in zone_data %}
+        <tr>
+          <td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;
+            background:{{ zone_colors[loop.index0] }};margin-right:6px;vertical-align:middle;"></span>{{ z.name }}</td>
+          <td style="color:var(--muted);font-size:0.8rem;">{{ z.description }}</td>
+          <td style="font-family:'DM Mono',monospace;">{{ z.min }}–{% if z.max >= 999 %}max{% else %}{{ z.max }}{% endif %} bpm</td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;">{{ z.time_label }}</td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;">{{ z.pct }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<footer>Generated from {{ fit_filename }}</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const C = Chart;
+Chart.defaults.color = '#7a84a0';
+Chart.defaults.borderColor = '#2a3048';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const tsLabels = {{ ts_labels | tojson }};
+const tsHR     = {{ ts_hr | tojson }};
+const tsPwr    = {{ ts_pwr | tojson }};
+
+function traceOpts(yLabel) {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' '+Math.round(c.parsed.y)+' '+yLabel } } },
+    elements: { point: { radius: 0 } },
+    scales: {
+      x: { display: false },
+      y: { grid: { color: '#2a3048' }, ticks: { callback: v => v+' '+yLabel } }
+    }
+  };
+}
+
+function curveOpts(yMin, yMax, unit) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' '+Math.round(c.parsed.y)+' '+unit } } },
+    scales: {
+      x: { grid: { color: '#2a3048' }, ticks: { autoSkip: false, maxRotation: 0 } },
+      y: { min: yMin, max: yMax, grid: { color: '#2a3048' }, ticks: { callback: v => v+' '+unit } }
+    }
+  };
+}
+
+{% if has_hr %}
+new C(document.getElementById('hrTrace'), {
+  type: 'line',
+  data: { labels: tsLabels, datasets: [{ data: tsHR, borderColor: '#f7694f', borderWidth: 1.5, fill: true, backgroundColor: 'rgba(247,105,79,0.08)', tension: 0.2 }] },
+  options: traceOpts('bpm')
+});
+{% endif %}
+
+{% if has_elevation %}
+const elevDist = {{ ts_elev_dist | tojson }};
+const elevAlt  = {{ ts_elev_alt | tojson }};
+new C(document.getElementById('elevChart'), {
+  type: 'line',
+  data: { labels: elevDist, datasets: [{
+    data: elevAlt,
+    borderColor: '#34c98a',
+    backgroundColor: 'rgba(52,201,138,0.12)',
+    borderWidth: 1.5,
+    fill: true,
+    tension: 0.3,
+    pointRadius: 0
+  }] },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: {
+        title: items => items[0].label + ' km',
+        label: c => ' ' + Math.round(c.parsed.y) + ' m'
+      } }
+    },
+    elements: { point: { radius: 0 } },
+    scales: {
+      x: {
+        grid: { color: '#2a3048' },
+        ticks: { maxTicksLimit: 10, callback: v => elevDist[v] !== undefined ? Math.round(elevDist[v]) + ' km' : '' }
+      },
+      y: {
+        min: {{ elev_y_min }},
+        grid: { color: '#2a3048' },
+        ticks: { callback: v => v + ' m' }
+      }
+    }
+  }
+});
+{% endif %}
+
+{% if has_power %}
+new C(document.getElementById('pwrTrace'), {
+  type: 'line',
+  data: { labels: tsLabels, datasets: [{ data: tsPwr, borderColor: '#4f8ef7', borderWidth: 1.5, fill: true, backgroundColor: 'rgba(79,142,247,0.08)', tension: 0.2 }] },
+  options: traceOpts('W')
+});
+{% endif %}
+
+{% if has_hr %}
+const hdcLabels = {{ hdc_labels | tojson }};
+const hdcData   = {{ hdc_data | tojson }};
+new C(document.getElementById('hdcChart'), {
+  type: 'line',
+  data: { labels: hdcLabels, datasets: [{ data: hdcData, borderColor: '#f7694f', backgroundColor: 'rgba(247,105,79,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#f7694f', fill: true, tension: 0.3 }] },
+  options: curveOpts({{ hdc_y_min }}, {{ hdc_y_max }}, 'bpm')
+});
+{% endif %}
+
+{% if has_power %}
+const pdcLabels = {{ pdc_labels | tojson }};
+const pdcData   = {{ pdc_data | tojson }};
+new C(document.getElementById('pdcChart'), {
+  type: 'line',
+  data: { labels: pdcLabels, datasets: [{ data: pdcData, borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,0.1)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#4f8ef7', fill: true, tension: 0.3 }] },
+  options: curveOpts({{ pdc_y_min }}, {{ pdc_y_max }}, 'W')
+});
+{% endif %}
+
+{% if has_lr %}
+const tsLeft = {{ ts_left | tojson }};
+new C(document.getElementById('lrTrace'), {
+  type: 'line',
+  data: { labels: tsLabels, datasets: [
+    { label: 'Left %', data: tsLeft, borderColor: '#4f8ef7', borderWidth: 1.5, fill: false, tension: 0.2, pointRadius: 0 },
+    { label: '50%', data: tsLabels.map(()=>50), borderColor: '#2a3048', borderWidth: 1, borderDash: [4,4], pointRadius: 0, fill: false }
+  ]},
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' Left '+c.parsed.y.toFixed(1)+'%' } } },
+    elements: { point: { radius: 0 } },
+    scales: {
+      x: { display: false },
+      y: { min: 40, max: 60, grid: { color: '#2a3048' }, ticks: { callback: v => v+'%' } }
+    }
+  }
+});
+{% endif %}
+
+{% if has_core or has_skin %}
+const tsCore = {{ ts_core | tojson }};
+const tsSkin = {{ ts_skin | tojson }};
+const tempDatasets = [];
+{% if has_core %}tempDatasets.push({ label: 'Core', data: tsCore, borderColor: '#f7694f', borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 0 });{% endif %}
+{% if has_skin %}tempDatasets.push({ label: 'Skin', data: tsSkin, borderColor: '#34c98a', borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 0 });{% endif %}
+new C(document.getElementById('tempTrace'), {
+  type: 'line',
+  data: { labels: tsLabels, datasets: tempDatasets },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 11 } } },
+               tooltip: { callbacks: { label: c => ' '+c.dataset.label+' '+c.parsed.y.toFixed(1)+'°C' } } },
+    elements: { point: { radius: 0 } },
+    scales: {
+      x: { display: false },
+      y: { grid: { color: '#2a3048' }, ticks: { callback: v => v+'°C' } }
+    }
+  }
+});
+{% endif %}
+
+{% if has_hsi %}
+const tsHsi = {{ ts_hsi | tojson }};
+new C(document.getElementById('hsiTrace'), {
+  type: 'line',
+  data: { labels: tsLabels, datasets: [{ data: tsHsi, borderColor: '#efb827', borderWidth: 1.5, fill: true, backgroundColor: 'rgba(239,184,39,0.08)', tension: 0.3, pointRadius: 0 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' HSI '+c.parsed.y.toFixed(1) } } },
+    elements: { point: { radius: 0 } },
+    scales: {
+      x: { display: false },
+      y: { min: 0, grid: { color: '#2a3048' }, ticks: { callback: v => v } }
+    }
+  }
+});
+{% endif %}
+
+{% if has_stryd_ambient %}
+const tsStrydTemp = {{ ts_stryd_temp | tojson }};
+const tsStrydHum  = {{ ts_stryd_hum | tojson }};
+const ambientDatasets = [];
+{% if has_stryd_temp %}
+ambientDatasets.push({
+  label: 'Temp (°C)', data: tsStrydTemp, borderColor: '#f0823a',
+  borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 0,
+  yAxisID: 'yTemp'
+});
+{% endif %}
+{% if has_stryd_hum %}
+ambientDatasets.push({
+  label: 'Humidity (%)', data: tsStrydHum, borderColor: '#4f8ef7',
+  borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 0,
+  yAxisID: 'yHum'
+});
+{% endif %}
+new C(document.getElementById('strydAmbientTrace'), {
+  type: 'line',
+  data: { labels: tsLabels, datasets: ambientDatasets },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: {
+      legend: { display: true, labels: { boxWidth: 10, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false }
+    },
+    elements: { point: { radius: 0 } },
+    scales: {
+      x: { display: false },
+      yTemp: {
+        type: 'linear', position: 'left',
+        grid: { color: '#2a3048' },
+        ticks: { color: '#f0823a', callback: v => v+'°C' }
+      },
+      yHum: {
+        type: 'linear', position: 'right',
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#4f8ef7', callback: v => v+'%' }
+      }
+    }
+  }
+});
+{% endif %}
+
+{% if has_hr_zones %}
+const zoneColors = {{ zone_colors | tojson }};
+const zoneLabels = {{ zone_names | tojson }};
+const zoneSecs   = {{ zone_secs | tojson }};
+const zonePcts   = {{ zone_pcts | tojson }};
+const zoneDescs  = {{ zone_descs | tojson }};
+
+new C(document.getElementById('zoneBarChart'), {
+  type: 'bar',
+  data: {
+    labels: zoneLabels,
+    datasets: [{
+      data: zoneSecs.map(s => +(s/60).toFixed(1)),
+      backgroundColor: zoneColors,
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const s = zoneSecs[ctx.dataIndex];
+            const m = Math.floor(s/60), sec = s%60;
+            return ` ${m}:${sec.toString().padStart(2,'0')} (${zonePcts[ctx.dataIndex]}%)`;
+          },
+          title: ctx => zoneDescs[ctx[0].dataIndex]
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: '#2a3048' }, ticks: { color: '#7a84a0' } },
+      y: {
+        grid: { color: '#2a3048' },
+        ticks: { color: '#7a84a0', callback: v => v + ' min' }
+      }
+    }
+  }
+});
+
+new C(document.getElementById('zoneDoughnut'), {
+  type: 'doughnut',
+  data: {
+    labels: zoneLabels,
+    datasets: [{
+      data: zonePcts,
+      backgroundColor: zoneColors,
+      borderColor: '#181c26',
+      borderWidth: 2,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: {
+        display: true,
+        position: 'right',
+        labels: { boxWidth: 10, padding: 12, color: '#7a84a0', font: { size: 11 } }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.parsed}%`
+        }
+      }
+    }
+  }
+});
+{% endif %}
+</script>
+</body>
+</html>

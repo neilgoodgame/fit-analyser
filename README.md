@@ -1,5 +1,7 @@
 # fit-analyser
 
+[![CI](https://github.com/neilgoodgame/fit-analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/neilgoodgame/fit-analyser/actions/workflows/ci.yml)
+
 Garmin FIT file analysis tool. Parses `.fit` files exported from Garmin Connect and produces:
 
 - Heart rate and power statistics (average, 20-min best, 60-min best)

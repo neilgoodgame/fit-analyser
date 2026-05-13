@@ -12,29 +12,17 @@ import pandas as pd
 from fit_analyser.formatting import fmt_distance, fmt_duration, fmt_pace, dur_label
 from fit_analyser.metrics import best_average, compute_hdc, compute_pdc
 from fit_analyser.parser import (
+    derive_power_from_accumulated,
     get_session_meta,
     parse_fit_to_dataframe,
     parse_laps,
-    derive_power_from_accumulated,
+    synthetic_laps,
 )
 from fit_analyser.report import build_html_report
 
 
 def load_hr_zones(zones_path: str) -> list[dict]:
-    """
-    Load HR zones from a JSON file.
-
-    Expected format:
-        {
-          "Z1": { "min": 0, "max": 104, "description": "..." },
-          "Z2": { "min": 105, "max": 129, "description": "..." },
-          ...
-        }
-
-    Returns a list of zone dicts sorted by min HR, each with keys:
-        name, min, max, description
-    Raises SystemExit with a clear message if the file is missing or malformed.
-    """
+    """Load HR zones from a JSON file."""
     try:
         raw = json.loads(Path(zones_path).read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -47,71 +35,54 @@ def load_hr_zones(zones_path: str) -> list[dict]:
     zones = []
     for name, vals in raw.items():
         if "min" not in vals or "max" not in vals:
-            print(
-                f"ERROR: Zone '{name}' missing 'min' or 'max' in {zones_path}",
-                file=sys.stderr,
-            )
+            print(f"ERROR: Zone '{name}' missing 'min' or 'max'", file=sys.stderr)
             sys.exit(1)
         zones.append(
             {
-                "name":        name,
-                "min":         int(vals["min"]),
-                "max":         int(vals["max"]),
+                "name": name,
+                "min": int(vals["min"]),
+                "max": int(vals["max"]),
                 "description": vals.get("description", ""),
             }
         )
-
     return sorted(zones, key=lambda z: z["min"])
 
 
 def print_zone_distribution(df: pd.DataFrame, zones: list[dict]) -> None:
-    """
-    Print time spent in each HR zone for a given activity DataFrame.
-    Expects df to have a 'heart_rate' column with numeric values.
-    """
     hr = df["heart_rate"].dropna()
     if hr.empty:
         print("  No heart rate data available for zone analysis.")
         return
-
     total_s = len(hr)
-
     print(f"  {'Zone':<6} {'Description':<22} {'Range':<13} {'Time':>8}  {'%':>6}  {'Bar'}")
     print("  " + "-" * 74)
-
     for z in zones:
         lo, hi = z["min"], z["max"]
         in_z = hr[(hr >= lo) & (hr <= hi)]
         secs = len(in_z)
-        pct  = secs / total_s * 100 if total_s else 0
+        pct = secs / total_s * 100 if total_s else 0
         m, s = divmod(secs, 60)
-        bar  = "█" * int(pct / 2)
+        bar = "█" * int(pct / 2)
         hi_label = str(hi) if hi < 999 else "max"
-        rng  = f"{lo}-{hi_label} bpm"
+        rng = f"{lo}-{hi_label} bpm"
         desc = z["description"].split("—")[0].strip() if "—" in z["description"] else z["description"]
         desc = desc[:21]
-        print(
-            f"  {z['name']:<6} {desc:<22} {rng:<13} {m:>4}:{s:02d}  {pct:>5.1f}%  {bar}"
-        )
-
+        print(f"  {z['name']:<6} {desc:<22} {rng:<13} {m:>4}:{s:02d}  {pct:>5.1f}%  {bar}")
     print()
-    avg_hr = hr.mean()
-    max_hr = hr.max()
     dominant = max(zones, key=lambda z: len(hr[(hr >= z["min"]) & (hr <= z["max"])]))
-    print(f"  Avg HR         : {avg_hr:.1f} bpm")
-    print(f"  Max HR         : {max_hr:.0f} bpm")
-    print(f"  Dominant zone  : {dominant['name']} ({dominant['description'].split('—')[0].strip() if '—' in dominant['description'] else dominant['description'][:40]})")
+    d_desc = dominant["description"].split("—")[0].strip() if "—" in dominant["description"] else dominant["description"][:40]
+    print(f"  Avg HR         : {hr.mean():.1f} bpm")
+    print(f"  Max HR         : {hr.max():.0f} bpm")
+    print(f"  Dominant zone  : {dominant['name']} ({d_desc})")
 
 
 def _print_lap_table(laps: list[dict], is_run: bool, has_power: bool) -> None:
     cols = ["Lap", "Duration", "Distance", "Avg HR"]
     widths = [4, 9, 9, 7]
     if is_run:
-        cols.append("Avg Pace")
-        widths.append(10)
+        cols.append("Avg Pace"); widths.append(10)
     if has_power:
-        cols.append("Avg Pwr")
-        widths.append(8)
+        cols.append("Avg Pwr"); widths.append(8)
 
     print("  " + "  ".join(f"{c:>{w}}" for c, w in zip(cols, widths)))
     print("  " + "  ".join("-" * w for w in widths))
@@ -139,11 +110,34 @@ def _resolve_power_series(df: pd.DataFrame, use_accumulated: bool) -> "pd.Series
     if ap_series.empty:
         print(
             "WARNING: --accumulated-power requested but no accumulated_power "
-            "data found in this file. Falling back to instantaneous power.",
+            "data found. Falling back to instantaneous power.",
             file=sys.stderr,
         )
         return None
     return ap_series
+
+
+def _resolve_laps(
+    fit_path: str,
+    df: pd.DataFrame,
+    lap_distance_km: float | None,
+) -> list[dict]:
+    """
+    Return laps either from the FIT file or synthetically at a fixed distance.
+
+    If lap_distance_km is provided, synthetic_laps() is used and the
+    FIT file's lap messages are ignored entirely.
+    """
+    if lap_distance_km is not None:
+        laps = synthetic_laps(df, lap_distance_km)
+        if not laps:
+            print(
+                f"WARNING: Could not generate synthetic laps at {lap_distance_km} km intervals "
+                "(no distance data in file).",
+                file=sys.stderr,
+            )
+        return laps
+    return parse_laps(fit_path, df)
 
 
 def main() -> None:
@@ -151,19 +145,34 @@ def main() -> None:
         description="Parse a Garmin FIT file and report HR and power statistics."
     )
     parser.add_argument("--fit-file-path", required=True, metavar="PATH")
-    parser.add_argument("--html-report", action="store_true", help="Generate a self-contained HTML report.")
-    parser.add_argument("--output", metavar="PATH", help="Output path for HTML report.")
-    parser.add_argument("--pdc-json", action="store_true", help="Print power duration curve as JSON and exit.")
-    parser.add_argument("--hdc-json", action="store_true", help="Print HR duration curve as JSON and exit.")
+    parser.add_argument("--html-report", action="store_true",
+                        help="Generate a self-contained HTML report.")
+    parser.add_argument("--output", metavar="PATH",
+                        help="Output path for HTML report.")
+    parser.add_argument("--pdc-json", action="store_true",
+                        help="Print power duration curve as JSON and exit.")
+    parser.add_argument("--hdc-json", action="store_true",
+                        help="Print HR duration curve as JSON and exit.")
+    parser.add_argument("--accumulated-power", action="store_true",
+                        help="Derive power from accumulated_power field.")
+    parser.add_argument("--hr-zones", metavar="PATH",
+                        help="Path to a JSON file defining HR zones.")
     parser.add_argument(
-        "--accumulated-power", action="store_true",
-        help="Derive power from accumulated_power field (eliminates zero-dropout artefacts).",
-    )
-    parser.add_argument(
-        "--hr-zones", metavar="PATH",
-        help="Path to a JSON file defining HR zones for zone distribution output.",
+        "--lap-distance",
+        type=float,
+        metavar="KM",
+        default=None,
+        help=(
+            "Override FIT file laps and generate synthetic laps at this fixed "
+            "distance interval in kilometres (e.g. --lap-distance 5 creates "
+            "one lap every 5 km). Useful for races recorded as a single lap."
+        ),
     )
     args = parser.parse_args()
+
+    if args.lap_distance is not None and args.lap_distance <= 0:
+        print("ERROR: --lap-distance must be a positive number.", file=sys.stderr)
+        sys.exit(1)
 
     fit_path = args.fit_file_path
 
@@ -187,20 +196,32 @@ def main() -> None:
 
     hdc = compute_hdc(df)
     pdc = compute_pdc(df, ap_series)
+    laps = _resolve_laps(fit_path, df, args.lap_distance)
+
+    lap_source = (
+        f"synthetic @ {args.lap_distance} km" if args.lap_distance is not None
+        else "from FIT file"
+    )
 
     if args.html_report:
-        laps = parse_laps(fit_path, df)
         zones = load_hr_zones(args.hr_zones) if args.hr_zones else None
-        html = build_html_report(fit_path, df, laps, meta, hdc, pdc, power_source=power_source, hr_zones=zones)
+        html = build_html_report(
+            fit_path, df, laps, meta, hdc, pdc,
+            power_source=power_source,
+            hr_zones=zones,
+        )
         out_path = args.output or (Path(fit_path).stem + "_report.html")
         Path(out_path).write_text(html, encoding="utf-8")
         print(f"Report written to: {out_path}")
         return
 
-    laps = parse_laps(fit_path, df)
-    duration_min = (df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]).total_seconds() / 60
-    hr_points    = int(df["heart_rate"].notna().sum())
-    power_points = int(df["power"].notna().sum()) if ap_series is None else int(ap_series.notna().sum())
+    duration_min = (
+        df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]
+    ).total_seconds() / 60
+    hr_points = int(df["heart_rate"].notna().sum())
+    power_points = (
+        int(df["power"].notna().sum()) if ap_series is None else int(ap_series.notna().sum())
+    )
     is_run = sport == "running"
 
     print(f"Parsing: {fit_path}\n")
@@ -226,7 +247,12 @@ def main() -> None:
     if power_points == 0:
         print("  No power data found.")
     else:
-        s = ap_series.dropna() if ap_series is not None else df.copy().assign(power=lambda d: d["power"].where(d["power"] != 0)).dropna(subset=["power"]).set_index("timestamp")["power"]
+        if ap_series is not None:
+            s = ap_series.dropna()
+        else:
+            df_p = df.copy()
+            df_p.loc[df_p["power"] == 0, "power"] = float("nan")
+            s = df_p.dropna(subset=["power"]).set_index("timestamp")["power"]
         b20 = best_average(s, 20)
         b60 = best_average(s, 60)
         print(f"  Average               : {s.mean():.1f} W")
@@ -235,7 +261,7 @@ def main() -> None:
 
     if laps:
         print()
-        print(f"Laps ({len(laps)} total):")
+        print(f"Laps ({len(laps)} total)  [{lap_source}]:")
         _print_lap_table(laps, is_run, power_points > 0)
 
     if hr_points > 0:

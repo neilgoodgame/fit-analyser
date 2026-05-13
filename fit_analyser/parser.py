@@ -114,11 +114,6 @@ def derive_power_from_accumulated(df: pd.DataFrame) -> pd.Series:
     """
     Derive a clean instantaneous power series from the accumulated_power field.
 
-    The accumulated_power field is a monotonically increasing cumulative watt
-    counter maintained by the power meter. It is immune to the zero-dropout
-    problem (ERG mode blips, coasting, brief dropouts) that affects the
-    instantaneous power field.
-
     Three artefact types are handled:
 
     1. Irregular update cadence -- power meters commonly write
@@ -142,7 +137,6 @@ def derive_power_from_accumulated(df: pd.DataFrame) -> pd.Series:
     if ap.empty:
         return pd.Series(dtype=float)
 
-    # Detect counter resets: any point where accumulated_power decreases
     diffs = ap.diff()
     reset_points = diffs[diffs < 0].index
     segment_starts = [ap.index[0]] + list(reset_points)
@@ -154,11 +148,7 @@ def derive_power_from_accumulated(df: pd.DataFrame) -> pd.Series:
         seg = ap.loc[start:end]
         if len(seg) < WINDOW + 1:
             continue
-
-        # Resample to 1s, forward-fill brief gaps (<=5 s)
         seg_1s = seg.resample("1s").mean().ffill(limit=5)
-
-        # Rolling-window differentiation smooths the 2s update cadence
         power_seg = (seg_1s - seg_1s.shift(WINDOW)) / WINDOW
         power_seg = power_seg.clip(lower=0)
         segments.append(power_seg)
@@ -167,10 +157,8 @@ def derive_power_from_accumulated(df: pd.DataFrame) -> pd.Series:
         return pd.Series(dtype=float)
 
     power_1s = pd.concat(segments).sort_index()
-    # Remove duplicate timestamps at segment boundaries
     power_1s = power_1s[~power_1s.index.duplicated(keep="last")]
 
-    # Final clip: remove any residual catch-up spikes using IQR upper fence
     valid = power_1s[power_1s > 0]
     if len(valid) > 60:
         q25 = valid.quantile(0.25)
@@ -185,9 +173,8 @@ def parse_laps(fit_path: str, df_records: pd.DataFrame | None = None) -> list[di
     """
     Parse lap messages from a FIT file.
 
-    If df_records (the cleaned record DataFrame) is provided, lap average power
-    is recomputed from the cleaned records rather than trusting the Lap Power
-    field, which can be inflated by Stryd firmware glitches.
+    If df_records is provided, lap average power is recomputed from the
+    cleaned records (guarding against corrupt Stryd Lap Power values).
 
     Each lap dict contains: duration_s, distance_m, avg_hr, avg_power,
     start_time, end_time.
@@ -221,5 +208,71 @@ def parse_laps(fit_path: str, df_records: pd.DataFrame | None = None) -> list[di
                 lap["avg_power"] = (
                     round(float(lap_pwr.mean()), 0) if len(lap_pwr) > 0 else None
                 )
+
+    return laps
+
+
+def synthetic_laps(df: pd.DataFrame, lap_distance_km: float) -> list[dict]:
+    """
+    Generate synthetic laps at fixed distance intervals from the record DataFrame.
+
+    Used when --lap-distance is passed on the CLI, overriding whatever lap
+    structure is encoded in the FIT file.
+
+    Args:
+        df:               Cleaned record DataFrame (output of parse_fit_to_dataframe).
+        lap_distance_km:  Interval in kilometres (e.g. 5.0 creates one lap per 5 km).
+
+    Returns:
+        List of lap dicts with the same keys as parse_laps:
+            duration_s, distance_m, avg_hr, avg_power, start_time, end_time.
+        The final partial lap (< lap_distance_km) is always included.
+
+    Returns an empty list if the DataFrame has no distance data.
+    """
+    if "distance" not in df.columns or df["distance"].isna().all():
+        return []
+
+    lap_distance_m = lap_distance_km * 1000
+    total_dist = df["distance"].dropna().max()
+
+    laps = []
+    boundary = 0.0
+
+    while boundary < total_dist:
+        next_boundary = boundary + lap_distance_m
+        mask = (df["distance"] >= boundary) & (df["distance"] < next_boundary)
+        seg = df[mask]
+
+        if len(seg) < 2:
+            boundary = next_boundary
+            continue
+
+        duration_s = (
+            seg["timestamp"].iloc[-1] - seg["timestamp"].iloc[0]
+        ).total_seconds()
+        distance_m = float(
+            seg["distance"].iloc[-1] - seg["distance"].iloc[0]
+        )
+        avg_hr_vals = seg["heart_rate"].dropna()
+        avg_hr = int(round(float(avg_hr_vals.mean()))) if len(avg_hr_vals) > 0 else None
+
+        avg_pwr_vals = seg["power"].dropna() if "power" in seg.columns else pd.Series(dtype=float)
+        avg_power = (
+            round(float(avg_pwr_vals.mean()), 0) if len(avg_pwr_vals) > 0 else None
+        )
+
+        laps.append(
+            {
+                "duration_s": round(duration_s, 3),
+                "distance_m": round(distance_m, 2),
+                "avg_hr": avg_hr,
+                "avg_power": avg_power,
+                "start_time": seg["timestamp"].iloc[0],
+                "end_time": seg["timestamp"].iloc[-1],
+            }
+        )
+
+        boundary = next_boundary
 
     return laps

@@ -1,6 +1,7 @@
 # fit-analyser
 
 [![CI](https://github.com/neilgoodgame/fit-analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/neilgoodgame/fit-analyser/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/neilgoodgame/fit-analyser/branch/main/graph/badge.svg)](https://codecov.io/gh/neilgoodgame/fit-analyser)
 
 Garmin FIT file analysis tool. Parses `.fit` files exported from Garmin Connect and produces:
 

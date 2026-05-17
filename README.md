@@ -64,6 +64,24 @@ poetry run generate-hr-zones --resting-hr 45 --lthr 155 --max-hr 176 --method ka
 
 ---
 
+## Pre-commit hooks
+
+[pre-commit](https://pre-commit.com/) is configured to run `ruff` (lint + auto-fix) and `ruff-format` before every commit.
+
+Install the hooks after cloning:
+
+```bash
+poetry run pre-commit install
+```
+
+Run manually against all files:
+
+```bash
+poetry run pre-commit run --all-files
+```
+
+---
+
 ## Running tests
 
 ```bash

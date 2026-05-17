@@ -61,6 +61,10 @@ def build_html_report(fit_path, df, laps, meta, hdc, pdc, power_source: str = "i
     start_time   = meta.get("start_time", "")
     total_ascent  = meta.get("total_ascent")
     total_descent = meta.get("total_descent")
+    aerobic_te    = meta.get("total_training_effect")
+    anaerobic_te  = meta.get("total_anaerobic_training_effect")
+    primary_benefit = meta.get("primary_benefit")
+    has_training_effect = aerobic_te is not None or anaerobic_te is not None
 
     hr_series  = df.dropna(subset=["heart_rate"]).set_index("timestamp")["heart_rate"]
     pwr_series = df.dropna(subset=["power"]).set_index("timestamp")["power"]
@@ -204,6 +208,10 @@ def build_html_report(fit_path, df, laps, meta, hdc, pdc, power_source: str = "i
         "calories":      calories if calories else None,
         "total_ascent":  int(total_ascent)  if total_ascent  else None,
         "total_descent": int(total_descent) if total_descent else None,
+        "aerobic_te":    aerobic_te,
+        "anaerobic_te":  anaerobic_te,
+        "primary_benefit": primary_benefit,
+        "has_training_effect": has_training_effect,
         # HR stats
         "avg_hr":  avg_hr,
         "max_hr":  max_hr,

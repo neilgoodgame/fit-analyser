@@ -224,11 +224,19 @@ def main() -> None:
     )
     is_run = sport == "running"
 
+    aerobic_te   = meta.get("total_training_effect")
+    anaerobic_te = meta.get("total_anaerobic_training_effect")
+    primary_benefit = meta.get("primary_benefit")
+
     print(f"Parsing: {fit_path}\n")
     print(f"Sport                   : {sport}")
     print(f"Activity duration       : {duration_min:.1f} min")
     print(f"HR data points          : {hr_points}")
     print(f"Power data points       : {power_points}  [{power_source}]")
+    if aerobic_te is not None:
+        print(f"Aerobic TE              : {aerobic_te:.1f}  ({primary_benefit})")
+    if anaerobic_te is not None:
+        print(f"Anaerobic TE            : {anaerobic_te:.1f}")
     print()
 
     print("Heart Rate:")

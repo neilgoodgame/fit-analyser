@@ -210,8 +210,37 @@
     {% endif %}
     {{ stat_card("Ascent", total_ascent, "m") }}
     {{ stat_card("Descent", total_descent, "m") }}
+    {% if aerobic_te is not none %}{{ stat_card("Aerobic TE", aerobic_te) }}{% endif %}
+    {% if anaerobic_te is not none %}{{ stat_card("Anaerobic TE", anaerobic_te) }}{% endif %}
   </div>
 </div>
+
+{% if has_training_effect %}
+<!-- Training effect -->
+<div class="section">
+  <div class="section-title">Training effect</div>
+  <div class="stat-grid">
+    {% if aerobic_te is not none %}
+    <div class="stat">
+      <div class="stat-label">Aerobic TE</div>
+      <div class="stat-value">{{ aerobic_te }}<span class="stat-unit">/ 5</span></div>
+    </div>
+    {% endif %}
+    {% if anaerobic_te is not none %}
+    <div class="stat">
+      <div class="stat-label">Anaerobic TE</div>
+      <div class="stat-value">{{ anaerobic_te }}<span class="stat-unit">/ 5</span></div>
+    </div>
+    {% endif %}
+    {% if primary_benefit %}
+    <div class="stat" style="grid-column: span 2;">
+      <div class="stat-label">Primary Benefit</div>
+      <div class="stat-value" style="font-size:1.15rem;">{{ primary_benefit }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 <!-- Activity trace -->
 <div class="section">

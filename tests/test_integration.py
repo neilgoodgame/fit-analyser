@@ -49,6 +49,21 @@ class TestCliConsoleOutput:
         result = run_cli("--fit-file-path", marathon_fit)
         assert "5 total" in result.stdout
 
+    def test_cycling_shows_aerobic_te(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert "Aerobic TE" in result.stdout
+
+    def test_cycling_shows_anaerobic_te(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert "Anaerobic TE" in result.stdout
+
+    def test_cycling_shows_primary_benefit(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert any(label in result.stdout for label in [
+            "No Benefit", "Minor Benefit", "Maintaining",
+            "Improving", "Highly Improving", "Overreaching",
+        ])
+
     def test_missing_file_exits_nonzero(self):
         result = run_cli("--fit-file-path", "/no/such/file.fit")
         assert result.returncode != 0
@@ -155,4 +170,26 @@ class TestHtmlReport:
         run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
         content = Path(out).read_text()
         assert "Cumulative heat stress" in content and "HSI" in content
+        Path(out).unlink()
+
+    def test_report_has_training_effect_section(self, cycling_fit):
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            out = f.name
+        run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
+        content = Path(out).read_text()
+        assert "Training effect" in content
+        assert "Aerobic TE" in content
+        assert "Anaerobic TE" in content
+        assert "Primary Benefit" in content
+        Path(out).unlink()
+
+    def test_report_training_effect_shows_valid_benefit(self, cycling_fit):
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            out = f.name
+        run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
+        content = Path(out).read_text()
+        assert any(label in content for label in [
+            "No Benefit", "Minor Benefit", "Maintaining",
+            "Improving", "Highly Improving", "Overreaching",
+        ])
         Path(out).unlink()

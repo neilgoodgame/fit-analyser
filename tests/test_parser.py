@@ -9,7 +9,37 @@ from fit_analyser.parser import (
     get_session_meta,
     parse_fit_to_dataframe,
     parse_laps,
+    training_effect_label,
 )
+
+
+class TestTrainingEffectLabel:
+    def test_none_returns_none(self):
+        assert training_effect_label(None) is None
+
+    def test_zero_is_no_benefit(self):
+        assert training_effect_label(0.0) == "No Benefit"
+
+    def test_below_one_is_no_benefit(self):
+        assert training_effect_label(0.9) == "No Benefit"
+
+    def test_one_is_minor_benefit(self):
+        assert training_effect_label(1.0) == "Minor Benefit"
+
+    def test_two_is_maintaining(self):
+        assert training_effect_label(2.0) == "Maintaining"
+
+    def test_three_is_improving(self):
+        assert training_effect_label(3.0) == "Improving"
+
+    def test_four_is_highly_improving(self):
+        assert training_effect_label(4.0) == "Highly Improving"
+
+    def test_four_point_two_is_highly_improving(self):
+        assert training_effect_label(4.2) == "Highly Improving"
+
+    def test_five_is_overreaching(self):
+        assert training_effect_label(5.0) == "Overreaching"
 
 
 class TestDecodeLrBalance:
@@ -75,6 +105,28 @@ class TestGetSessionMeta:
     def test_indoor_no_elevation(self, cycling_fit):
         meta = get_session_meta(cycling_fit)
         assert "total_ascent" in meta
+
+    def test_cycling_has_aerobic_te(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["total_training_effect"] is not None
+        assert 0.0 <= meta["total_training_effect"] <= 5.0
+
+    def test_cycling_has_anaerobic_te(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["total_anaerobic_training_effect"] is not None
+        assert 0.0 <= meta["total_anaerobic_training_effect"] <= 5.0
+
+    def test_cycling_has_primary_benefit(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["primary_benefit"] is not None
+        assert meta["primary_benefit"] in {
+            "No Benefit", "Minor Benefit", "Maintaining",
+            "Improving", "Highly Improving", "Overreaching",
+        }
+
+    def test_primary_benefit_matches_aerobic_te(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["primary_benefit"] == training_effect_label(meta["total_training_effect"])
 
     def test_missing_file_returns_empty(self):
         meta = get_session_meta("/nonexistent/path.fit")

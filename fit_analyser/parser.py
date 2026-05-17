@@ -6,12 +6,41 @@ import pandas as pd
 from fitparse import FitFile
 
 
+def training_effect_label(te: float | None) -> str | None:
+    """
+    Map a Garmin training effect value (0–5) to its benefit label.
+
+    Scale per Garmin documentation:
+        0.0–0.9  No Benefit
+        1.0–1.9  Minor Benefit
+        2.0–2.9  Maintaining
+        3.0–3.9  Improving
+        4.0–4.9  Highly Improving
+        5.0      Overreaching
+    """
+    if te is None:
+        return None
+    if te < 1.0:
+        return "No Benefit"
+    if te < 2.0:
+        return "Minor Benefit"
+    if te < 3.0:
+        return "Maintaining"
+    if te < 4.0:
+        return "Improving"
+    if te < 5.0:
+        return "Highly Improving"
+    return "Overreaching"
+
+
 def get_session_meta(fit_path: str) -> dict:
     """
     Return session-level metadata from the FIT file.
 
     Keys: sport, sub_sport, start_time, total_distance, total_calories,
-          total_elapsed_time, total_ascent, total_descent.
+          total_elapsed_time, total_ascent, total_descent,
+          total_training_effect, total_anaerobic_training_effect,
+          primary_benefit.
     Returns an empty dict if no session message is found or file is missing.
     """
     try:
@@ -20,6 +49,8 @@ def get_session_meta(fit_path: str) -> dict:
         return {}
     for msg in fit.get_messages("session"):
         data = {f.name: f.value for f in msg}
+        aerobic_te  = data.get("total_training_effect")
+        anaerobic_te = data.get("total_anaerobic_training_effect")
         return {
             "sport": str(data.get("sport", "unknown")).lower(),
             "sub_sport": str(data.get("sub_sport", "")).lower(),
@@ -29,6 +60,9 @@ def get_session_meta(fit_path: str) -> dict:
             "total_elapsed_time": data.get("total_elapsed_time"),
             "total_ascent": data.get("total_ascent"),
             "total_descent": data.get("total_descent"),
+            "total_training_effect": aerobic_te,
+            "total_anaerobic_training_effect": anaerobic_te,
+            "primary_benefit": training_effect_label(aerobic_te),
         }
     return {}
 

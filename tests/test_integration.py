@@ -57,6 +57,10 @@ class TestCliConsoleOutput:
         result = run_cli("--fit-file-path", cycling_fit)
         assert "Anaerobic TE" in result.stdout
 
+    def test_cycling_shows_normalized_power(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert "Normalized Power" in result.stdout
+
     def test_cycling_shows_tss(self, cycling_fit):
         result = run_cli("--fit-file-path", cycling_fit)
         assert "Training Stress Score" in result.stdout
@@ -178,6 +182,14 @@ class TestHtmlReport:
         run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
         content = Path(out).read_text()
         assert "Cumulative heat stress" in content and "HSI" in content
+        Path(out).unlink()
+
+    def test_report_has_normalized_power(self, cycling_fit):
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            out = f.name
+        run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
+        content = Path(out).read_text()
+        assert "Normalized Power" in content
         Path(out).unlink()
 
     def test_report_has_tss_and_if(self, cycling_fit):

@@ -66,7 +66,8 @@ def build_html_report(fit_path, df, laps, meta, hdc, pdc, power_source: str = "i
     primary_benefit = meta.get("primary_benefit")
     tss     = meta.get("training_stress_score")
     if_val  = meta.get("intensity_factor")
-    has_training_effect = any(v is not None for v in [aerobic_te, anaerobic_te, tss, if_val])
+    np_val  = meta.get("normalized_power")
+    has_training_effect = any(v is not None for v in [aerobic_te, anaerobic_te, tss, if_val, np_val])
 
     hr_series  = df.dropna(subset=["heart_rate"]).set_index("timestamp")["heart_rate"]
     pwr_series = df.dropna(subset=["power"]).set_index("timestamp")["power"]
@@ -215,6 +216,7 @@ def build_html_report(fit_path, df, laps, meta, hdc, pdc, power_source: str = "i
         "primary_benefit": primary_benefit,
         "tss":           round(tss, 1) if tss is not None else None,
         "intensity_factor": round(if_val, 3) if if_val is not None else None,
+        "normalized_power": int(np_val) if np_val is not None else None,
         "has_training_effect": has_training_effect,
         # HR stats
         "avg_hr":  avg_hr,

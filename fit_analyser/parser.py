@@ -65,6 +65,7 @@ def get_session_meta(fit_path: str) -> dict:
             "primary_benefit": training_effect_label(aerobic_te),
             "training_stress_score": data.get("training_stress_score"),
             "intensity_factor": data.get("intensity_factor"),
+            "normalized_power": data.get("normalized_power"),
         }
     return {}
 

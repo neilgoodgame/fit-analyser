@@ -232,6 +232,12 @@
       <div class="stat-value">{{ anaerobic_te }}<span class="stat-unit">/ 5</span></div>
     </div>
     {% endif %}
+    {% if normalized_power is not none %}
+    <div class="stat">
+      <div class="stat-label">Normalized Power</div>
+      <div class="stat-value">{{ normalized_power }}<span class="stat-unit">W</span></div>
+    </div>
+    {% endif %}
     {% if tss is not none %}
     <div class="stat">
       <div class="stat-label">Training Stress Score</div>

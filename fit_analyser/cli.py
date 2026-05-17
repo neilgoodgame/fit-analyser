@@ -239,10 +239,13 @@ def main() -> None:
         print(f"Anaerobic TE            : {anaerobic_te:.1f}")
     tss = meta.get("training_stress_score")
     if_val = meta.get("intensity_factor")
+    np_val = meta.get("normalized_power")
     if tss is not None:
         print(f"Training Stress Score   : {tss:.1f}")
     if if_val is not None:
         print(f"Intensity Factor        : {if_val:.3f}")
+    if np_val is not None:
+        print(f"Normalized Power        : {np_val} W")
     print()
 
     print("Heart Rate:")

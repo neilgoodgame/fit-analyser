@@ -138,6 +138,15 @@ class TestGetSessionMeta:
         assert meta["intensity_factor"] is not None
         assert 0.0 < meta["intensity_factor"] <= 2.0
 
+    def test_cycling_has_normalized_power(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["normalized_power"] is not None
+        assert meta["normalized_power"] > 0
+
+    def test_treadmill_normalized_power_absent(self, treadmill_fit):
+        meta = get_session_meta(treadmill_fit)
+        assert meta["normalized_power"] is None
+
     def test_treadmill_tss_absent(self, treadmill_fit):
         meta = get_session_meta(treadmill_fit)
         assert meta["training_stress_score"] is None

@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/neilgoodgame/fit-analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/neilgoodgame/fit-analyser/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/neilgoodgame/fit-analyser/branch/main/graph/badge.svg)](https://codecov.io/gh/neilgoodgame/fit-analyser)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Garmin FIT file analysis tool. Parses `.fit` files exported from Garmin Connect and produces:
 

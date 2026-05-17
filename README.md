@@ -80,6 +80,19 @@ Run manually against all files:
 poetry run pre-commit run --all-files
 ```
 
+Ruff can also be run directly:
+
+```bash
+# Check for lint errors
+poetry run ruff check fit_analyser tests
+
+# Check and auto-fix
+poetry run ruff check --fix fit_analyser tests
+
+# Format
+poetry run ruff format fit_analyser tests
+```
+
 ---
 
 ## Running tests

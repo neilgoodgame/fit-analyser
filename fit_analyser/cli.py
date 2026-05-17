@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from fit_analyser.formatting import fmt_distance, fmt_duration, fmt_pace, dur_label
+from fit_analyser.formatting import dur_label, fmt_distance, fmt_duration, fmt_pace
 from fit_analyser.metrics import best_average, compute_hdc, compute_pdc
 from fit_analyser.parser import (
     derive_power_from_accumulated,
@@ -65,12 +65,18 @@ def print_zone_distribution(df: pd.DataFrame, zones: list[dict]) -> None:
         bar = "█" * int(pct / 2)
         hi_label = str(hi) if hi < 999 else "max"
         rng = f"{lo}-{hi_label} bpm"
-        desc = z["description"].split("—")[0].strip() if "—" in z["description"] else z["description"]
+        desc = (
+            z["description"].split("—")[0].strip() if "—" in z["description"] else z["description"]
+        )
         desc = desc[:21]
         print(f"  {z['name']:<6} {desc:<22} {rng:<13} {m:>4}:{s:02d}  {pct:>5.1f}%  {bar}")
     print()
     dominant = max(zones, key=lambda z: len(hr[(hr >= z["min"]) & (hr <= z["max"])]))
-    d_desc = dominant["description"].split("—")[0].strip() if "—" in dominant["description"] else dominant["description"][:40]
+    d_desc = (
+        dominant["description"].split("—")[0].strip()
+        if "—" in dominant["description"]
+        else dominant["description"][:40]
+    )
     print(f"  Avg HR         : {hr.mean():.1f} bpm")
     print(f"  Max HR         : {hr.max():.0f} bpm")
     print(f"  Dominant zone  : {dominant['name']} ({d_desc})")
@@ -80,9 +86,11 @@ def _print_lap_table(laps: list[dict], is_run: bool, has_power: bool) -> None:
     cols = ["Lap", "Duration", "Distance", "Avg HR"]
     widths = [4, 9, 9, 7]
     if is_run:
-        cols.append("Avg Pace"); widths.append(10)
+        cols.append("Avg Pace")
+        widths.append(10)
     if has_power:
-        cols.append("Avg Pwr"); widths.append(8)
+        cols.append("Avg Pwr")
+        widths.append(8)
 
     print("  " + "  ".join(f"{c:>{w}}" for c, w in zip(cols, widths)))
     print("  " + "  ".join("-" * w for w in widths))
@@ -145,18 +153,22 @@ def main() -> None:
         description="Parse a Garmin FIT file and report HR and power statistics."
     )
     parser.add_argument("--fit-file-path", required=True, metavar="PATH")
-    parser.add_argument("--html-report", action="store_true",
-                        help="Generate a self-contained HTML report.")
-    parser.add_argument("--output", metavar="PATH",
-                        help="Output path for HTML report.")
-    parser.add_argument("--pdc-json", action="store_true",
-                        help="Print power duration curve as JSON and exit.")
-    parser.add_argument("--hdc-json", action="store_true",
-                        help="Print HR duration curve as JSON and exit.")
-    parser.add_argument("--accumulated-power", action="store_true",
-                        help="Derive power from accumulated_power field.")
-    parser.add_argument("--hr-zones", metavar="PATH",
-                        help="Path to a JSON file defining HR zones.")
+    parser.add_argument(
+        "--html-report", action="store_true", help="Generate a self-contained HTML report."
+    )
+    parser.add_argument("--output", metavar="PATH", help="Output path for HTML report.")
+    parser.add_argument(
+        "--pdc-json", action="store_true", help="Print power duration curve as JSON and exit."
+    )
+    parser.add_argument(
+        "--hdc-json", action="store_true", help="Print HR duration curve as JSON and exit."
+    )
+    parser.add_argument(
+        "--accumulated-power",
+        action="store_true",
+        help="Derive power from accumulated_power field.",
+    )
+    parser.add_argument("--hr-zones", metavar="PATH", help="Path to a JSON file defining HR zones.")
     parser.add_argument(
         "--lap-distance",
         type=float,
@@ -199,14 +211,18 @@ def main() -> None:
     laps = _resolve_laps(fit_path, df, args.lap_distance)
 
     lap_source = (
-        f"synthetic @ {args.lap_distance} km" if args.lap_distance is not None
-        else "from FIT file"
+        f"synthetic @ {args.lap_distance} km" if args.lap_distance is not None else "from FIT file"
     )
 
     if args.html_report:
         zones = load_hr_zones(args.hr_zones) if args.hr_zones else None
         html = build_html_report(
-            fit_path, df, laps, meta, hdc, pdc,
+            fit_path,
+            df,
+            laps,
+            meta,
+            hdc,
+            pdc,
             power_source=power_source,
             hr_zones=zones,
         )
@@ -215,16 +231,14 @@ def main() -> None:
         print(f"Report written to: {out_path}")
         return
 
-    duration_min = (
-        df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]
-    ).total_seconds() / 60
+    duration_min = (df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]).total_seconds() / 60
     hr_points = int(df["heart_rate"].notna().sum())
     power_points = (
         int(df["power"].notna().sum()) if ap_series is None else int(ap_series.notna().sum())
     )
     is_run = sport == "running"
 
-    aerobic_te   = meta.get("total_training_effect")
+    aerobic_te = meta.get("total_training_effect")
     anaerobic_te = meta.get("total_anaerobic_training_effect")
     primary_benefit = meta.get("primary_benefit")
 
@@ -256,8 +270,16 @@ def main() -> None:
         b20 = best_average(s, 20)
         b60 = best_average(s, 60)
         print(f"  Average               : {s.mean():.1f} bpm")
-        print(f"  20-min best average   : {b20:.1f} bpm" if not pd.isna(b20) else "  20-min best average   : N/A")
-        print(f"  60-min best average   : {b60:.1f} bpm" if not pd.isna(b60) else "  60-min best average   : N/A")
+        print(
+            f"  20-min best average   : {b20:.1f} bpm"
+            if not pd.isna(b20)
+            else "  20-min best average   : N/A"
+        )
+        print(
+            f"  60-min best average   : {b60:.1f} bpm"
+            if not pd.isna(b60)
+            else "  60-min best average   : N/A"
+        )
     print()
 
     print(f"Power  [{power_source}]:")
@@ -273,8 +295,16 @@ def main() -> None:
         b20 = best_average(s, 20)
         b60 = best_average(s, 60)
         print(f"  Average               : {s.mean():.1f} W")
-        print(f"  20-min best average   : {b20:.1f} W" if not pd.isna(b20) else "  20-min best average   : N/A")
-        print(f"  60-min best average   : {b60:.1f} W" if not pd.isna(b60) else "  60-min best average   : N/A")
+        print(
+            f"  20-min best average   : {b20:.1f} W"
+            if not pd.isna(b20)
+            else "  20-min best average   : N/A"
+        )
+        print(
+            f"  60-min best average   : {b60:.1f} W"
+            if not pd.isna(b60)
+            else "  60-min best average   : N/A"
+        )
 
     if laps:
         print()

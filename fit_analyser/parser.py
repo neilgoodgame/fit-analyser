@@ -61,13 +61,11 @@ def get_session_meta(fit_path: str) -> dict:
         return {}
     for msg in fit.get_messages("session"):
         data = {f.name: f.value for f in msg}
-        aerobic_te   = data.get("total_training_effect")
+        aerobic_te = data.get("total_training_effect")
         anaerobic_te = data.get("total_anaerobic_training_effect")
         benefit_enum = data.get("unknown_188")
         primary_benefit = (
-            _BENEFIT_LABELS.get(benefit_enum)
-            if benefit_enum
-            else training_effect_label(aerobic_te)
+            _BENEFIT_LABELS.get(benefit_enum) if benefit_enum else training_effect_label(aerobic_te)
         )
         return {
             "sport": str(data.get("sport", "unknown")).lower(),
@@ -148,9 +146,17 @@ def parse_fit_to_dataframe(fit_path: str) -> pd.DataFrame:
     df = pd.DataFrame(records).sort_values("timestamp").reset_index(drop=True)
 
     numeric_cols = [
-        "heart_rate", "power", "accumulated_power", "left_pct",
-        "core_temperature", "skin_temperature", "heat_strain_index",
-        "stryd_temp", "stryd_humidity", "altitude", "distance",
+        "heart_rate",
+        "power",
+        "accumulated_power",
+        "left_pct",
+        "core_temperature",
+        "skin_temperature",
+        "heat_strain_index",
+        "stryd_temp",
+        "stryd_humidity",
+        "altitude",
+        "distance",
     ]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -195,7 +201,7 @@ def derive_power_from_accumulated(df: pd.DataFrame) -> pd.Series:
     diffs = ap.diff()
     reset_points = diffs[diffs < 0].index
     segment_starts = [ap.index[0]] + list(reset_points)
-    segment_ends   = list(reset_points) + [ap.index[-1] + pd.Timedelta(seconds=1)]
+    segment_ends = list(reset_points) + [ap.index[-1] + pd.Timedelta(seconds=1)]
 
     WINDOW = 4
     segments = []
@@ -256,13 +262,9 @@ def parse_laps(fit_path: str, df_records: pd.DataFrame | None = None) -> list[di
             if s and dur and df_records["power"].notna().any():
                 s_ts = pd.Timestamp(s)
                 e_ts = s_ts + pd.Timedelta(seconds=dur)
-                mask = (df_records["timestamp"] >= s_ts) & (
-                    df_records["timestamp"] <= e_ts
-                )
+                mask = (df_records["timestamp"] >= s_ts) & (df_records["timestamp"] <= e_ts)
                 lap_pwr = df_records.loc[mask, "power"].dropna()
-                lap["avg_power"] = (
-                    round(float(lap_pwr.mean()), 0) if len(lap_pwr) > 0 else None
-                )
+                lap["avg_power"] = round(float(lap_pwr.mean()), 0) if len(lap_pwr) > 0 else None
 
     return laps
 
@@ -303,19 +305,13 @@ def synthetic_laps(df: pd.DataFrame, lap_distance_km: float) -> list[dict]:
             boundary = next_boundary
             continue
 
-        duration_s = (
-            seg["timestamp"].iloc[-1] - seg["timestamp"].iloc[0]
-        ).total_seconds()
-        distance_m = float(
-            seg["distance"].iloc[-1] - seg["distance"].iloc[0]
-        )
+        duration_s = (seg["timestamp"].iloc[-1] - seg["timestamp"].iloc[0]).total_seconds()
+        distance_m = float(seg["distance"].iloc[-1] - seg["distance"].iloc[0])
         avg_hr_vals = seg["heart_rate"].dropna()
         avg_hr = int(round(float(avg_hr_vals.mean()))) if len(avg_hr_vals) > 0 else None
 
         avg_pwr_vals = seg["power"].dropna() if "power" in seg.columns else pd.Series(dtype=float)
-        avg_power = (
-            round(float(avg_pwr_vals.mean()), 0) if len(avg_pwr_vals) > 0 else None
-        )
+        avg_power = round(float(avg_pwr_vals.mean()), 0) if len(avg_pwr_vals) > 0 else None
 
         laps.append(
             {

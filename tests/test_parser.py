@@ -1,8 +1,7 @@
 """Tests for fit_analyser.parser."""
 
-import math
-import pytest
 import pandas as pd
+import pytest
 
 from fit_analyser.parser import (
     decode_lr_balance,
@@ -120,10 +119,19 @@ class TestGetSessionMeta:
         meta = get_session_meta(cycling_fit)
         assert meta["primary_benefit"] is not None
         assert meta["primary_benefit"] in {
-            "Transitioning", "Base", "Tempo", "Threshold",
-            "VO2 Max", "Anaerobic", "Overspeed",
-            "No Benefit", "Minor Benefit", "Maintaining",
-            "Improving", "Highly Improving", "Overreaching",
+            "Transitioning",
+            "Base",
+            "Tempo",
+            "Threshold",
+            "VO2 Max",
+            "Anaerobic",
+            "Overspeed",
+            "No Benefit",
+            "Minor Benefit",
+            "Maintaining",
+            "Improving",
+            "Highly Improving",
+            "Overreaching",
         }
 
     def test_cycling_primary_benefit_is_threshold(self, cycling_fit):
@@ -168,9 +176,17 @@ class TestParseFitToDataframe:
 
     def test_required_columns_present(self, cycling_df):
         required = [
-            "timestamp", "heart_rate", "power", "left_pct",
-            "core_temperature", "skin_temperature", "heat_strain_index",
-            "stryd_temp", "stryd_humidity", "altitude", "distance",
+            "timestamp",
+            "heart_rate",
+            "power",
+            "left_pct",
+            "core_temperature",
+            "skin_temperature",
+            "heat_strain_index",
+            "stryd_temp",
+            "stryd_humidity",
+            "altitude",
+            "distance",
         ]
         for col in required:
             assert col in cycling_df.columns, f"Missing column: {col}"
@@ -234,8 +250,9 @@ class TestParseFitToDataframe:
     def test_numeric_columns_are_numeric(self, cycling_df):
         numeric_cols = ["heart_rate", "power", "left_pct", "core_temperature"]
         for col in numeric_cols:
-            assert pd.api.types.is_float_dtype(cycling_df[col]) or \
-                   pd.api.types.is_integer_dtype(cycling_df[col])
+            assert pd.api.types.is_float_dtype(cycling_df[col]) or pd.api.types.is_integer_dtype(
+                cycling_df[col]
+            )
 
 
 class TestParseLaps:

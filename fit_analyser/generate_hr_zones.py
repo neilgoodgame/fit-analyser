@@ -25,27 +25,117 @@ import sys
 from pathlib import Path
 
 MAX_HR_ZONES = [
-    ("Z1", "Active Recovery", "Very light effort, warm-up and cool-down. Fully aerobic, no fatigue accumulation.", 0.50, 0.60),
-    ("Z2", "Endurance", "Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume.", 0.60, 0.70),
-    ("Z3", "Tempo", "Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work.", 0.70, 0.80),
-    ("Z4", "Threshold", "Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes.", 0.80, 0.90),
-    ("Z5", "VO2max", "Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes.", 0.90, 1.00),
+    (
+        "Z1",
+        "Active Recovery",
+        "Very light effort, warm-up and cool-down. Fully aerobic, no fatigue accumulation.",
+        0.50,
+        0.60,
+    ),
+    (
+        "Z2",
+        "Endurance",
+        "Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume.",
+        0.60,
+        0.70,
+    ),
+    (
+        "Z3",
+        "Tempo",
+        "Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work.",
+        0.70,
+        0.80,
+    ),
+    (
+        "Z4",
+        "Threshold",
+        "Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes.",
+        0.80,
+        0.90,
+    ),
+    (
+        "Z5",
+        "VO2max",
+        "Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes.",
+        0.90,
+        1.00,
+    ),
 ]
 
 KARVONEN_ZONES = [
-    ("Z1", "Active Recovery", "Very light effort, warm-up and cool-down. Fully aerobic, no fatigue accumulation.", 0.50, 0.60),
-    ("Z2", "Endurance", "Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume.", 0.60, 0.70),
-    ("Z3", "Tempo", "Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work.", 0.70, 0.80),
-    ("Z4", "Threshold", "Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes.", 0.80, 0.90),
-    ("Z5", "VO2max", "Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes.", 0.90, 1.00),
+    (
+        "Z1",
+        "Active Recovery",
+        "Very light effort, warm-up and cool-down. Fully aerobic, no fatigue accumulation.",
+        0.50,
+        0.60,
+    ),
+    (
+        "Z2",
+        "Endurance",
+        "Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume.",
+        0.60,
+        0.70,
+    ),
+    (
+        "Z3",
+        "Tempo",
+        "Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work.",
+        0.70,
+        0.80,
+    ),
+    (
+        "Z4",
+        "Threshold",
+        "Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes.",
+        0.80,
+        0.90,
+    ),
+    (
+        "Z5",
+        "VO2max",
+        "Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes.",
+        0.90,
+        1.00,
+    ),
 ]
 
 COGGAN_ZONES = [
-    ("Z1", "Active Recovery", "Very light effort, warm-up and cool-down. Fully aerobic, no fatigue accumulation.", 0.00, 0.68),
-    ("Z2", "Endurance", "Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume.", 0.68, 0.83),
-    ("Z3", "Tempo", "Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work.", 0.84, 0.94),
-    ("Z4", "Threshold", "Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes.", 0.95, 1.05),
-    ("Z5", "VO2max", "Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes.", 1.06, 9.99),
+    (
+        "Z1",
+        "Active Recovery",
+        "Very light effort, warm-up and cool-down. Fully aerobic, no fatigue accumulation.",
+        0.00,
+        0.68,
+    ),
+    (
+        "Z2",
+        "Endurance",
+        "Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume.",
+        0.68,
+        0.83,
+    ),
+    (
+        "Z3",
+        "Tempo",
+        "Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work.",
+        0.84,
+        0.94,
+    ),
+    (
+        "Z4",
+        "Threshold",
+        "Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes.",
+        0.95,
+        1.05,
+    ),
+    (
+        "Z5",
+        "VO2max",
+        "Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes.",
+        1.06,
+        9.99,
+    ),
 ]
 
 
@@ -80,9 +170,9 @@ def calc_coggan_zones(rhr: int, lthr: int, mhr: int) -> dict:
 
 
 METHODS = {
-    "max-hr":   (calc_max_hr_zones,   "Percentage of maximum heart rate (Fox 1971 / Garmin default)"),
+    "max-hr": (calc_max_hr_zones, "Percentage of maximum heart rate (Fox 1971 / Garmin default)"),
     "karvonen": (calc_karvonen_zones, "Percentage of heart rate reserve — Karvonen method"),
-    "coggan":   (calc_coggan_zones,   "Anchored to lactate threshold heart rate — Coggan method"),
+    "coggan": (calc_coggan_zones, "Anchored to lactate threshold heart rate — Coggan method"),
 }
 
 
@@ -109,9 +199,11 @@ Example:
     args = parser.parse_args()
 
     if args.resting_hr >= args.lthr:
-        print("ERROR: resting HR must be less than LTHR.", file=sys.stderr); sys.exit(1)
+        print("ERROR: resting HR must be less than LTHR.", file=sys.stderr)
+        sys.exit(1)
     if args.lthr >= args.max_hr:
-        print("ERROR: LTHR must be less than max HR.", file=sys.stderr); sys.exit(1)
+        print("ERROR: LTHR must be less than max HR.", file=sys.stderr)
+        sys.exit(1)
 
     calc_fn, method_desc = METHODS[args.method]
     zones = calc_fn(args.resting_hr, args.lthr, args.max_hr)
@@ -133,7 +225,9 @@ Example:
         return
 
     out_path = args.output or f"{args.method}_zones.json"
-    Path(out_path).write_text(json.dumps(zones, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    Path(out_path).write_text(
+        json.dumps(zones, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(f"\nZones written to: {out_path}")
 
 

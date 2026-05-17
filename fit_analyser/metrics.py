@@ -93,9 +93,7 @@ def compute_heat_stress(df: pd.DataFrame) -> dict | None:
     """
     if "heat_strain_index" not in df.columns:
         return None
-    s = df.dropna(subset=["heat_strain_index"])[
-        ["timestamp", "heat_strain_index"]
-    ].copy()
+    s = df.dropna(subset=["heat_strain_index"])[["timestamp", "heat_strain_index"]].copy()
     if s.empty:
         return None
     s = s.sort_values("timestamp").reset_index(drop=True)
@@ -110,23 +108,12 @@ def compute_heat_stress(df: pd.DataFrame) -> dict | None:
     first_idx = nonzero.index[0]
     active = s.iloc[first_idx:].copy()
     init_min = active["elapsed_s"].iloc[0] / 60
-    active_min = (
-        active["elapsed_s"].iloc[-1] - active["elapsed_s"].iloc[0]
-    ) / 60
+    active_min = (active["elapsed_s"].iloc[-1] - active["elapsed_s"].iloc[0]) / 60
 
-    hsi_min = float(
-        _trapz(active["hsi"], active["elapsed_s"]) / 60.0
-    )
+    hsi_min = float(_trapz(active["hsi"], active["elapsed_s"]) / 60.0)
 
-    active_ts = (
-        active.set_index("timestamp")["hsi"]
-        .resample("1s")
-        .mean()
-        .ffill(limit=5)
-    )
-    peak_60s = float(
-        active_ts.rolling(60, min_periods=30).mean().max()
-    )
+    active_ts = active.set_index("timestamp")["hsi"].resample("1s").mean().ffill(limit=5)
+    peak_60s = float(active_ts.rolling(60, min_periods=30).mean().max())
 
     zones = []
     for z in HEAT_ZONES:
@@ -134,12 +121,7 @@ def compute_heat_stress(df: pd.DataFrame) -> dict | None:
         mins = round(float(len(in_zone) / 60), 1)
         pct = round(mins / active_min * 100, 1) if active_min > 0 else 0.0
         z_integral = round(
-            float(
-                _trapz(
-                    in_zone["hsi"].values, in_zone["elapsed_s"].values
-                )
-                / 60.0
-            )
+            float(_trapz(in_zone["hsi"].values, in_zone["elapsed_s"].values) / 60.0)
             if len(in_zone) > 1
             else 0.0,
             1,

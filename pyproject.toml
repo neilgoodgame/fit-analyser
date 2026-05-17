@@ -17,10 +17,18 @@ pandas-stubs = "~=2.3.3"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
 pytest-cov = "^5.0.0"
+ruff = "^0.15.13"
+pre-commit = "^4.6.0"
 
 [tool.poetry.scripts]
 fit-analyser      = "fit_analyser.cli:main"
 generate-hr-zones = "fit_analyser.generate_hr_zones:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

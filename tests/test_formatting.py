@@ -1,8 +1,6 @@
 """Tests for fit_analyser.formatting."""
 
-import pytest
-
-from fit_analyser.formatting import fmt_duration, fmt_distance, fmt_pace, dur_label
+from fit_analyser.formatting import dur_label, fmt_distance, fmt_duration, fmt_pace
 
 
 class TestFmtDuration:
@@ -25,7 +23,6 @@ class TestFmtDuration:
         assert fmt_duration(None) == "N/A"
 
     def test_nan_returns_na(self):
-        import math
         assert fmt_duration(float("nan")) == "N/A"
 
 

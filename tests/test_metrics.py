@@ -1,18 +1,18 @@
 """Tests for fit_analyser.metrics."""
 
 import math
-import pytest
-import pandas as pd
 from datetime import datetime, timedelta
 
+import pandas as pd
+
+from fit_analyser.constants import CURVE_DURATIONS
 from fit_analyser.metrics import (
     best_average,
     compute_curve,
     compute_hdc,
-    compute_pdc,
     compute_heat_stress,
+    compute_pdc,
 )
-from fit_analyser.constants import CURVE_DURATIONS
 
 
 def make_series(values: list[float], freq_s: int = 1) -> pd.Series:
@@ -118,11 +118,14 @@ class TestComputePdc:
 
     def test_empty_power_returns_empty(self):
         from datetime import datetime, timedelta
+
         t0 = datetime(2024, 1, 1)
-        df = pd.DataFrame({
-            "timestamp": [t0 + timedelta(seconds=i) for i in range(100)],
-            "power": [float("nan")] * 100,
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": [t0 + timedelta(seconds=i) for i in range(100)],
+                "power": [float("nan")] * 100,
+            }
+        )
         result = compute_pdc(df)
         assert result == []
 

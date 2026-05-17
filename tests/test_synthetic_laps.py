@@ -8,43 +8,46 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from fit_analyser.parser import synthetic_laps
 
 FIXTURES = Path(__file__).parent / "fixtures"
-MARATHON  = FIXTURES / "running_outdoor_marathon.fit"
-CYCLING   = FIXTURES / "cycling_indoor.fit"
+MARATHON = FIXTURES / "running_outdoor_marathon.fit"
+CYCLING = FIXTURES / "cycling_indoor.fit"
 TREADMILL = FIXTURES / "running_treadmill.fit"
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────────────────
+
 
 def make_df(total_km: float, hr_start: int = 130, power: float = 250.0) -> pd.DataFrame:
     """Build a minimal record DataFrame with 1-second resolution."""
     n = int(total_km * 1000)
     t0 = datetime(2024, 5, 11, 8, 0, 0)
     timestamps = [t0 + timedelta(seconds=i) for i in range(n)]
-    return pd.DataFrame({
-        "timestamp":  timestamps,
-        "distance":   [float(i) for i in range(n)],
-        "heart_rate": [hr_start + i // 600 for i in range(n)],
-        "power":      [power] * n,
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": timestamps,
+            "distance": [float(i) for i in range(n)],
+            "heart_rate": [hr_start + i // 600 for i in range(n)],
+            "power": [power] * n,
+        }
+    )
 
 
 def run_cli(*args) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "fit_analyser.cli", *args],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
         cwd=str(Path(__file__).parent.parent),
     )
 
 
-# ── synthetic_laps unit tests ─────────────────────────────────────────────────────────────────────────────
+# ── synthetic_laps unit tests ───────────────────────────────────────────────────────────────────
+
 
 class TestSyntheticLaps:
-
     def test_exact_laps_no_remainder(self):
         """10 km at 5 km intervals → exactly 2 laps."""
         df = make_df(10.0)
@@ -73,7 +76,14 @@ class TestSyntheticLaps:
         df = make_df(10.0)
         laps = synthetic_laps(df, 5.0)
         for lap in laps:
-            for key in ["duration_s", "distance_m", "avg_hr", "avg_power", "start_time", "end_time"]:
+            for key in [
+                "duration_s",
+                "distance_m",
+                "avg_hr",
+                "avg_power",
+                "start_time",
+                "end_time",
+            ]:
                 assert key in lap
 
     def test_avg_hr_computed(self):
@@ -120,7 +130,7 @@ class TestSyntheticLaps:
         df = make_df(15.0)
         laps = synthetic_laps(df, 5.0)
         for i in range(1, len(laps)):
-            gap = (laps[i]["start_time"] - laps[i-1]["end_time"]).total_seconds()
+            gap = (laps[i]["start_time"] - laps[i - 1]["end_time"]).total_seconds()
             assert abs(gap) <= 2
 
     def test_total_distance_preserved(self):
@@ -155,10 +165,10 @@ class TestSyntheticLaps:
             assert lap["duration_s"] > 0
 
 
-# ── CLI integration tests ─────────────────────────────────────────────────────────────────────────────
+# ── CLI integration tests ────────────────────────────────────────────────────────────────────────
+
 
 class TestCliLapDistance:
-
     def test_lap_distance_overrides_fit_laps(self):
         """Marathon FIT has 5 laps; --lap-distance 5 should produce 9."""
         result = run_cli("--fit-file-path", str(MARATHON), "--lap-distance", "5")
@@ -204,8 +214,10 @@ class TestCliLapDistance:
 
     def test_lap_distance_combined_with_accumulated_power(self):
         result = run_cli(
-            "--fit-file-path", str(CYCLING),
-            "--lap-distance", "5",
+            "--fit-file-path",
+            str(CYCLING),
+            "--lap-distance",
+            "5",
             "--accumulated-power",
         )
         assert result.returncode == 0

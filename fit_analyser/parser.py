@@ -63,6 +63,8 @@ def get_session_meta(fit_path: str) -> dict:
             "total_training_effect": aerobic_te,
             "total_anaerobic_training_effect": anaerobic_te,
             "primary_benefit": training_effect_label(aerobic_te),
+            "training_stress_score": data.get("training_stress_score"),
+            "intensity_factor": data.get("intensity_factor"),
         }
     return {}
 

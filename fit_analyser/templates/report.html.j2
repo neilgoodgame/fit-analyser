@@ -232,6 +232,18 @@
       <div class="stat-value">{{ anaerobic_te }}<span class="stat-unit">/ 5</span></div>
     </div>
     {% endif %}
+    {% if tss is not none %}
+    <div class="stat">
+      <div class="stat-label">Training Stress Score</div>
+      <div class="stat-value">{{ tss }}</div>
+    </div>
+    {% endif %}
+    {% if intensity_factor is not none %}
+    <div class="stat">
+      <div class="stat-label">Intensity Factor</div>
+      <div class="stat-value">{{ intensity_factor }}</div>
+    </div>
+    {% endif %}
     {% if primary_benefit %}
     <div class="stat" style="grid-column: span 2;">
       <div class="stat-label">Primary Benefit</div>

@@ -128,6 +128,24 @@ class TestGetSessionMeta:
         meta = get_session_meta(cycling_fit)
         assert meta["primary_benefit"] == training_effect_label(meta["total_training_effect"])
 
+    def test_cycling_has_tss(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["training_stress_score"] is not None
+        assert meta["training_stress_score"] > 0
+
+    def test_cycling_has_intensity_factor(self, cycling_fit):
+        meta = get_session_meta(cycling_fit)
+        assert meta["intensity_factor"] is not None
+        assert 0.0 < meta["intensity_factor"] <= 2.0
+
+    def test_treadmill_tss_absent(self, treadmill_fit):
+        meta = get_session_meta(treadmill_fit)
+        assert meta["training_stress_score"] is None
+
+    def test_treadmill_if_absent(self, treadmill_fit):
+        meta = get_session_meta(treadmill_fit)
+        assert meta["intensity_factor"] is None
+
     def test_missing_file_returns_empty(self):
         meta = get_session_meta("/nonexistent/path.fit")
         assert meta == {}

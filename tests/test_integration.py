@@ -57,6 +57,14 @@ class TestCliConsoleOutput:
         result = run_cli("--fit-file-path", cycling_fit)
         assert "Anaerobic TE" in result.stdout
 
+    def test_cycling_shows_tss(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert "Training Stress Score" in result.stdout
+
+    def test_cycling_shows_intensity_factor(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert "Intensity Factor" in result.stdout
+
     def test_cycling_shows_primary_benefit(self, cycling_fit):
         result = run_cli("--fit-file-path", cycling_fit)
         assert any(label in result.stdout for label in [
@@ -170,6 +178,15 @@ class TestHtmlReport:
         run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
         content = Path(out).read_text()
         assert "Cumulative heat stress" in content and "HSI" in content
+        Path(out).unlink()
+
+    def test_report_has_tss_and_if(self, cycling_fit):
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            out = f.name
+        run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
+        content = Path(out).read_text()
+        assert "Training Stress Score" in content
+        assert "Intensity Factor" in content
         Path(out).unlink()
 
     def test_report_has_training_effect_section(self, cycling_fit):

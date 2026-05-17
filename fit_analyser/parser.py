@@ -33,6 +33,18 @@ def training_effect_label(te: float | None) -> str | None:
     return "Overreaching"
 
 
+# Garmin encodes the primary benefit as an enum in FIT field 188.
+_BENEFIT_LABELS: dict[int, str] = {
+    1: "Transitioning",
+    2: "Base",
+    3: "Tempo",
+    4: "Threshold",
+    5: "VO2 Max",
+    6: "Anaerobic",
+    7: "Overspeed",
+}
+
+
 def get_session_meta(fit_path: str) -> dict:
     """
     Return session-level metadata from the FIT file.
@@ -49,8 +61,14 @@ def get_session_meta(fit_path: str) -> dict:
         return {}
     for msg in fit.get_messages("session"):
         data = {f.name: f.value for f in msg}
-        aerobic_te  = data.get("total_training_effect")
+        aerobic_te   = data.get("total_training_effect")
         anaerobic_te = data.get("total_anaerobic_training_effect")
+        benefit_enum = data.get("unknown_188")
+        primary_benefit = (
+            _BENEFIT_LABELS.get(benefit_enum)
+            if benefit_enum
+            else training_effect_label(aerobic_te)
+        )
         return {
             "sport": str(data.get("sport", "unknown")).lower(),
             "sub_sport": str(data.get("sub_sport", "")).lower(),
@@ -62,7 +80,7 @@ def get_session_meta(fit_path: str) -> dict:
             "total_descent": data.get("total_descent"),
             "total_training_effect": aerobic_te,
             "total_anaerobic_training_effect": anaerobic_te,
-            "primary_benefit": training_effect_label(aerobic_te),
+            "primary_benefit": primary_benefit,
             "training_stress_score": data.get("training_stress_score"),
             "intensity_factor": data.get("intensity_factor"),
             "normalized_power": data.get("normalized_power"),

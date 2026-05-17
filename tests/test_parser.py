@@ -120,13 +120,15 @@ class TestGetSessionMeta:
         meta = get_session_meta(cycling_fit)
         assert meta["primary_benefit"] is not None
         assert meta["primary_benefit"] in {
+            "Transitioning", "Base", "Tempo", "Threshold",
+            "VO2 Max", "Anaerobic", "Overspeed",
             "No Benefit", "Minor Benefit", "Maintaining",
             "Improving", "Highly Improving", "Overreaching",
         }
 
-    def test_primary_benefit_matches_aerobic_te(self, cycling_fit):
+    def test_cycling_primary_benefit_is_threshold(self, cycling_fit):
         meta = get_session_meta(cycling_fit)
-        assert meta["primary_benefit"] == training_effect_label(meta["total_training_effect"])
+        assert meta["primary_benefit"] == "Threshold"
 
     def test_cycling_has_tss(self, cycling_fit):
         meta = get_session_meta(cycling_fit)

@@ -72,6 +72,8 @@ class TestCliConsoleOutput:
     def test_cycling_shows_primary_benefit(self, cycling_fit):
         result = run_cli("--fit-file-path", cycling_fit)
         assert any(label in result.stdout for label in [
+            "Transitioning", "Base", "Tempo", "Threshold",
+            "VO2 Max", "Anaerobic", "Overspeed",
             "No Benefit", "Minor Benefit", "Maintaining",
             "Improving", "Highly Improving", "Overreaching",
         ])
@@ -218,6 +220,8 @@ class TestHtmlReport:
         run_cli("--fit-file-path", cycling_fit, "--html-report", "--output", out)
         content = Path(out).read_text()
         assert any(label in content for label in [
+            "Transitioning", "Base", "Tempo", "Threshold",
+            "VO2 Max", "Anaerobic", "Overspeed",
             "No Benefit", "Minor Benefit", "Maintaining",
             "Improving", "Highly Improving", "Overreaching",
         ])

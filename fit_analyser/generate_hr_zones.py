@@ -160,11 +160,13 @@ def calc_karvonen_zones(rhr: int, lthr: int, mhr: int) -> dict:
 
 def calc_coggan_zones(rhr: int, lthr: int, mhr: int) -> dict:
     zones = {}
+    prev_max = None
     for i, (name, label, desc, lo_pct, hi_pct) in enumerate(COGGAN_ZONES):
-        lo = round(lthr * lo_pct) if lo_pct > 0 else 0
+        lo = (prev_max + 1) if prev_max is not None else (round(lthr * lo_pct) if lo_pct > 0 else 0)
         hi = min(round(lthr * hi_pct), mhr) if hi_pct < 9 else mhr
         if i < len(COGGAN_ZONES) - 1:
             hi = hi - 1
+        prev_max = hi
         zones[name] = {"min": lo, "max": hi, "description": f"{label} — {desc}"}
     return zones
 

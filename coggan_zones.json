@@ -10,17 +10,17 @@
     "description": "Endurance — Easy aerobic base work. Conversational pace, the bulk of long run and easy ride volume."
   },
   "Z3": {
-    "min": 131,
+    "min": 129,
     "max": 146,
     "description": "Tempo — Comfortably hard. Marathon to half-marathon effort. Sustained aerobic work."
   },
   "Z4": {
-    "min": 148,
+    "min": 147,
     "max": 163,
     "description": "Threshold — Lactate threshold effort. 10km to half-marathon race pace. Sustainable for 20-60 minutes."
   },
   "Z5": {
-    "min": 165,
+    "min": 164,
     "max": 169,
     "description": "VO2max — Very hard. 5km race pace and above. Sustainable only for short intervals of 3-8 minutes."
   }

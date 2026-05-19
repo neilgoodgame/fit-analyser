@@ -32,7 +32,7 @@ select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=fit_analyser --cov-report=term-missing -v"
+addopts = "-v"
 
 [tool.coverage.run]
 source = ["fit_analyser"]

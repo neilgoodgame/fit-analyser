@@ -256,7 +256,7 @@ def build_html_report(
         "max_pwr": max_pwr,
         "b20_pwr": b20_pwr,
         "b60_pwr": b60_pwr,
-        "ftp_est": round(b20_pwr * 0.95) if (has_power and b20_pwr) else None,
+        "ftp_est": round(b20_pwr * 0.95) if (b20_pwr is not None and pd.notna(b20_pwr)) else None,
         # L/R balance
         "avg_left": avg_left,
         "avg_right": avg_right,

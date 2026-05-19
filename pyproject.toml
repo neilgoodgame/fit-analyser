@@ -36,7 +36,6 @@ addopts = "--cov=fit_analyser --cov-report=term-missing -v"
 
 [tool.coverage.run]
 source = ["fit_analyser"]
-omit = ["fit_analyser/report.py"]   # HTML template; logic tested via integration
 
 [build-system]
 requires = ["poetry-core"]

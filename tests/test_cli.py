@@ -282,3 +282,37 @@ class TestMainConsoleEdgeCases:
         ):
             main()
         assert "No power data found" in capsys.readouterr().out
+
+    def test_stryd_ambient_printed_when_present(self, capsys):
+        df = _make_console_df()
+        df["stryd_temp"] = 18.5
+        df["stryd_humidity"] = 62.0
+        with (
+            patch("sys.argv", ["cli", "--fit-file-path", "fake.fit"]),
+            patch("fit_analyser.cli.get_session_meta", return_value=_MINIMAL_META),
+            patch("fit_analyser.cli.parse_fit_to_dataframe", return_value=df),
+            patch("fit_analyser.cli.parse_laps", return_value=[]),
+            patch("fit_analyser.cli.compute_hdc", return_value=[]),
+            patch("fit_analyser.cli.compute_pdc", return_value=[]),
+        ):
+            main()
+        out = capsys.readouterr().out
+        assert "Avg Ambient Temp" in out
+        assert "18.5" in out
+        assert "Avg Ambient Humidity" in out
+        assert "62.0" in out
+
+    def test_stryd_ambient_not_printed_when_absent(self, capsys):
+        df = _make_console_df()
+        with (
+            patch("sys.argv", ["cli", "--fit-file-path", "fake.fit"]),
+            patch("fit_analyser.cli.get_session_meta", return_value=_MINIMAL_META),
+            patch("fit_analyser.cli.parse_fit_to_dataframe", return_value=df),
+            patch("fit_analyser.cli.parse_laps", return_value=[]),
+            patch("fit_analyser.cli.compute_hdc", return_value=[]),
+            patch("fit_analyser.cli.compute_pdc", return_value=[]),
+        ):
+            main()
+        out = capsys.readouterr().out
+        assert "Avg Ambient Temp" not in out
+        assert "Avg Ambient Humidity" not in out

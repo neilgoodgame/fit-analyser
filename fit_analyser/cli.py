@@ -251,6 +251,16 @@ def main() -> None:
         print(f"Aerobic TE              : {aerobic_te:.1f}  ({primary_benefit})")
     if anaerobic_te is not None:
         print(f"Anaerobic TE            : {anaerobic_te:.1f}")
+    has_stryd_temp = bool(df["stryd_temp"].notna().any()) if "stryd_temp" in df.columns else False
+    has_stryd_hum = (
+        bool(df["stryd_humidity"].notna().any()) if "stryd_humidity" in df.columns else False
+    )
+    if has_stryd_temp:
+        avg_temp = df["stryd_temp"].dropna().mean()
+        print(f"Avg Ambient Temp        : {avg_temp:.1f} °C")
+    if has_stryd_hum:
+        avg_hum = df["stryd_humidity"].dropna().mean()
+        print(f"Avg Ambient Humidity    : {avg_hum:.1f} %")
     tss = meta.get("training_stress_score")
     if_val = meta.get("intensity_factor")
     np_val = meta.get("normalized_power")

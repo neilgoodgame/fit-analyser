@@ -1,0 +1,202 @@
+{% macro stat_card(label, value, unit="") %}{% if value is not none %}<div class="stat"><div class="stat-label">{{ label }}</div><div class="stat-value">{{ value }}<span class="stat-unit">{{ unit }}</span></div></div>{% endif %}{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multisport Activity Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c26;
+    --surface2:  #1e2332;
+    --border:    #2a3048;
+    --accent:    #4f8ef7;
+    --accent2:   #34c98a;
+    --text:      #e8eaf0;
+    --muted:     #7a84a0;
+    --radius:    10px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem 1.5rem 4rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sport-badge {
+    font-size: 2.2rem;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+
+  h1 { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; }
+  .subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  .section { margin-bottom: 2.5rem; }
+
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+  }
+
+  .stat-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-value { font-size: 1.5rem; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .stat-unit  { font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 2px; }
+
+  .segment-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .segment-badge {
+    font-size: 1.4rem;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .segment-name { font-weight: 600; font-size: 1.05rem; }
+  .segment-meta { font-size: 0.8rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  .segment-frame-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  iframe.segment-frame {
+    width: 100%;
+    border: 0;
+    display: block;
+    background: var(--bg);
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="sport-badge">🏁</div>
+  <div>
+    <h1>Multisport Activity</h1>
+    <div class="subtitle">{{ start_time }} &nbsp;·&nbsp; {{ filename }} &nbsp;·&nbsp; {{ segments | length }} sport{{ "s" if segments | length != 1 else "" }}</div>
+  </div>
+</header>
+
+<!-- Combined summary -->
+<div class="section">
+  <div class="section-title">Overview</div>
+  <div class="stat-grid">
+    {{ stat_card("Total Duration", duration_fmt) }}
+    {{ stat_card("Total Distance", distance_fmt) }}
+    {{ stat_card("Calories", calories, "kcal") }}
+    {{ stat_card("Ascent", total_ascent, "m") }}
+    {{ stat_card("Descent", total_descent, "m") }}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Training effect &amp; heart rate</div>
+  <div class="stat-grid">
+    {% if aerobic_te is not none %}{{ stat_card("Aerobic TE", aerobic_te) }}{% endif %}
+    {% if anaerobic_te is not none %}{{ stat_card("Anaerobic TE", anaerobic_te) }}{% endif %}
+    {% if tss is not none %}{{ stat_card("Training Stress Score", tss) }}{% endif %}
+    {{ stat_card("Avg Heart Rate", avg_hr, "bpm") }}
+    {{ stat_card("Max Heart Rate", max_hr, "bpm") }}
+    {{ stat_card("20-min best HR", b20_hr, "bpm") }}
+    {{ stat_card("60-min best HR", b60_hr, "bpm") }}
+    {% if primary_benefit %}
+    <div class="stat" style="grid-column: span 2;">
+      <div class="stat-label">Primary Benefit</div>
+      <div class="stat-value" style="font-size:1.15rem;">{{ primary_benefit }}</div>
+    </div>
+    {% endif %}
+  </div>
+  <p style="font-size:0.75rem;color:var(--muted);margin-top:0.75rem;">Aerobic/anaerobic TE reflect the final sport segment — training effect accumulates across the whole activity. Heart rate stats span the full continuous recording, including any transition time.</p>
+</div>
+
+{% for seg in segments %}
+<!-- Segment: {{ seg.label }} -->
+<div class="section">
+  <div class="segment-header">
+    <div class="segment-badge">{{ seg.icon }}</div>
+    <div>
+      <div class="segment-name">{{ seg.label }}</div>
+      <div class="segment-meta">{{ seg.start_time }} &nbsp;·&nbsp; {{ seg.duration_fmt }}{% if seg.distance_fmt and seg.distance_fmt != "N/A" %} &nbsp;·&nbsp; {{ seg.distance_fmt }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="segment-frame-wrap">
+    <iframe class="segment-frame" height="900" srcdoc="{{ seg.html | e }}"
+      onload="this.style.height = (this.contentWindow.document.body.scrollHeight + 40) + 'px';"></iframe>
+  </div>
+</div>
+{% endfor %}
+
+<footer>Generated from {{ fit_filename }}</footer>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 """Tests for fit_analyser.formatting."""
 
-from fit_analyser.formatting import dur_label, fmt_distance, fmt_duration, fmt_pace
+from fit_analyser.formatting import dur_label, fmt_distance, fmt_duration, fmt_pace, sport_label
 
 
 class TestFmtDuration:
@@ -80,3 +80,17 @@ class TestDurLabel:
     def test_hours(self):
         assert dur_label(3600) == "1hr"
         assert dur_label(7200) == "2hr"
+
+
+class TestSportLabel:
+    def test_generic_sub_sport_falls_back_to_sport(self):
+        assert sport_label("running", "generic") == "Running"
+
+    def test_no_sub_sport_falls_back_to_sport(self):
+        assert sport_label("running", "") == "Running"
+
+    def test_specific_sub_sport_used(self):
+        assert sport_label("cycling", "indoor_cycling") == "Indoor Cycling"
+
+    def test_transition_sport(self):
+        assert sport_label("transition", "generic") == "Transition"

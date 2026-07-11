@@ -4,10 +4,16 @@ import pandas as pd
 import pytest
 
 from fit_analyser.parser import (
+    compute_combined_meta,
     decode_lr_balance,
+    get_all_sessions_meta,
     get_session_meta,
+    is_multisport,
     parse_fit_to_dataframe,
     parse_laps,
+    split_laps_by_session,
+    split_records_by_session,
+    split_series_by_session,
     training_effect_label,
 )
 
@@ -297,3 +303,116 @@ class TestParseLaps:
         laps = parse_laps(cycling_fit)
         assert len(laps) == 8
         assert all("avg_power" in lap for lap in laps)
+
+
+class TestGetAllSessionsMeta:
+    def test_single_sport_file_has_one_session(self, cycling_fit):
+        sessions = get_all_sessions_meta(cycling_fit)
+        assert len(sessions) == 1
+
+    def test_multisport_file_has_three_sessions(self, multisport_fit):
+        sessions = get_all_sessions_meta(multisport_fit)
+        assert len(sessions) == 3
+        assert [s["sport"] for s in sessions] == ["running", "transition", "cycling"]
+
+    def test_sessions_have_start_and_end_dt(self, multisport_fit):
+        sessions = get_all_sessions_meta(multisport_fit)
+        for s in sessions:
+            assert s["start_time_dt"] is not None
+            assert s["end_time_dt"] is not None
+            assert s["end_time_dt"] > s["start_time_dt"]
+
+    def test_missing_file_returns_empty_list(self):
+        assert get_all_sessions_meta("/nonexistent/path.fit") == []
+
+
+class TestIsMultisport:
+    def test_multisport_file_detected(self, multisport_sessions):
+        assert is_multisport(multisport_sessions) is True
+
+    def test_single_sport_file_not_detected(self, cycling_fit):
+        assert is_multisport(get_all_sessions_meta(cycling_fit)) is False
+
+    def test_empty_sessions_not_multisport(self):
+        assert is_multisport([]) is False
+
+    def test_transition_alone_does_not_count(self):
+        sessions = [{"sport": "running"}, {"sport": "transition"}]
+        assert is_multisport(sessions) is False
+
+
+class TestSplitRecordsBySession:
+    def test_segments_align_with_sessions(self, multisport_df, multisport_sessions):
+        segments = split_records_by_session(multisport_df, multisport_sessions)
+        assert len(segments) == len(multisport_sessions)
+
+    def test_segments_partition_records_without_overlap_or_gaps(
+        self, multisport_df, multisport_sessions
+    ):
+        segments = split_records_by_session(multisport_df, multisport_sessions)
+        assert sum(len(seg) for seg in segments) == len(multisport_df)
+
+    def test_each_segment_within_its_own_time_window(self, multisport_df, multisport_sessions):
+        segments = split_records_by_session(multisport_df, multisport_sessions)
+        for s, seg in zip(multisport_sessions, segments):
+            if len(seg):
+                assert seg["timestamp"].min() >= s["start_time_dt"]
+                assert seg["timestamp"].max() < s["end_time_dt"]
+
+
+class TestSplitLapsBySession:
+    def test_each_session_gets_its_own_lap(
+        self, multisport_fit, multisport_df, multisport_sessions
+    ):
+        laps = parse_laps(multisport_fit, multisport_df)
+        segments = split_laps_by_session(laps, multisport_sessions)
+        assert [len(seg) for seg in segments] == [1, 1, 1]
+
+    def test_lap_start_times_match_their_session(
+        self, multisport_fit, multisport_df, multisport_sessions
+    ):
+        laps = parse_laps(multisport_fit, multisport_df)
+        segments = split_laps_by_session(laps, multisport_sessions)
+        for s, seg in zip(multisport_sessions, segments):
+            for lap in seg:
+                assert s["start_time_dt"] <= pd.Timestamp(lap["start_time"]) < s["end_time_dt"]
+
+
+class TestSplitSeriesBySession:
+    def test_splits_indexed_series_by_session_window(self, multisport_df, multisport_sessions):
+        hr = multisport_df.dropna(subset=["heart_rate"]).set_index("timestamp")["heart_rate"]
+        segments = split_series_by_session(hr, multisport_sessions)
+        assert len(segments) == len(multisport_sessions)
+        for s, seg in zip(multisport_sessions, segments):
+            if len(seg):
+                assert seg.index.min() >= s["start_time_dt"]
+                assert seg.index.max() < s["end_time_dt"]
+
+    def test_empty_series_returns_empty_segments(self, multisport_sessions):
+        segments = split_series_by_session(pd.Series(dtype=float), multisport_sessions)
+        assert all(seg.empty for seg in segments)
+
+
+class TestComputeCombinedMeta:
+    def test_final_session_te_is_combined_te(self, multisport_df, multisport_sessions):
+        combined = compute_combined_meta(multisport_df, multisport_sessions)
+        assert combined["total_training_effect"] == multisport_sessions[-1]["total_training_effect"]
+
+    def test_totals_are_summed_across_sessions(self, multisport_df, multisport_sessions):
+        combined = compute_combined_meta(multisport_df, multisport_sessions)
+        expected = sum(
+            s["total_distance"] for s in multisport_sessions if s["total_distance"] is not None
+        )
+        assert combined["total_distance"] == expected
+
+    def test_hr_stats_computed_over_whole_activity(self, multisport_df, multisport_sessions):
+        combined = compute_combined_meta(multisport_df, multisport_sessions)
+        hr = multisport_df["heart_rate"].dropna()
+        assert combined["avg_hr"] == pytest.approx(hr.mean())
+        assert combined["max_hr"] == hr.max()
+
+    def test_empty_sessions_returns_sensible_defaults(self):
+        combined = compute_combined_meta(pd.DataFrame({"timestamp": [], "heart_rate": []}), [])
+        assert combined["start_time"] == ""
+        assert combined["total_distance"] is None
+        assert combined["avg_hr"] is None

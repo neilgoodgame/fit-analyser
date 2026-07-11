@@ -248,3 +248,91 @@ class TestHtmlReport:
             ]
         )
         Path(out).unlink()
+
+
+class TestMultisportConsole:
+    def test_runs_successfully(self, multisport_fit):
+        result = run_cli("--fit-file-path", multisport_fit)
+        assert result.returncode == 0
+
+    def test_detects_both_sports(self, multisport_fit):
+        result = run_cli("--fit-file-path", multisport_fit)
+        assert "multisport activity" in result.stdout.lower()
+        assert "Segment: Running" in result.stdout
+        assert "Segment: Indoor Cycling" in result.stdout
+
+    def test_transition_segment_excluded(self, multisport_fit):
+        result = run_cli("--fit-file-path", multisport_fit)
+        assert "Segment: Transition" not in result.stdout
+        assert "Transition time" in result.stdout
+
+    def test_combined_summary_has_te_tss_hr(self, multisport_fit):
+        result = run_cli("--fit-file-path", multisport_fit)
+        assert "Aerobic TE (final)" in result.stdout
+        assert "Combined TSS" in result.stdout
+        assert "Avg HR (whole activity)" in result.stdout
+
+    def test_each_segment_has_own_laps_and_curves(self, multisport_fit):
+        result = run_cli("--fit-file-path", multisport_fit)
+        assert result.stdout.count("Heart Rate Duration Curve:") == 2
+        assert result.stdout.count("Power Duration Curve") == 2
+
+    def test_single_sport_file_not_treated_as_multisport(self, cycling_fit):
+        result = run_cli("--fit-file-path", cycling_fit)
+        assert "multisport" not in result.stdout.lower()
+
+
+class TestMultisportHtmlReport:
+    def test_generates_combined_report(self, multisport_fit):
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            out = f.name
+        result = run_cli("--fit-file-path", multisport_fit, "--html-report", "--output", out)
+        assert result.returncode == 0
+        content = Path(out).read_text()
+        assert "<!DOCTYPE html>" in content
+        assert "</html>" in content
+        assert "Multisport Activity" in content
+        assert content.count("<iframe") == 2
+        Path(out).unlink()
+
+    def test_no_split_files_written_by_default(self, multisport_fit):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out = str(Path(tmp_dir) / "report.html")
+            run_cli("--fit-file-path", multisport_fit, "--html-report", "--output", out)
+            written = list(Path(tmp_dir).iterdir())
+            assert written == [Path(out)]
+
+    def test_split_reports_writes_standalone_files(self, multisport_fit):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out = str(Path(tmp_dir) / "report.html")
+            result = run_cli(
+                "--fit-file-path",
+                multisport_fit,
+                "--html-report",
+                "--split-reports",
+                "--output",
+                out,
+            )
+            assert result.returncode == 0
+            written = sorted(p.name for p in Path(tmp_dir).iterdir())
+            assert "report.html" in written
+            assert any("running" in name for name in written)
+            assert any("cycling" in name for name in written)
+            assert len(written) == 3
+
+    def test_split_report_is_standalone_single_sport_report(self, multisport_fit):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out = str(Path(tmp_dir) / "report.html")
+            run_cli(
+                "--fit-file-path",
+                multisport_fit,
+                "--html-report",
+                "--split-reports",
+                "--output",
+                out,
+            )
+            running_file = next(p for p in Path(tmp_dir).iterdir() if "running" in p.name)
+            content = running_file.read_text()
+            assert "<!DOCTYPE html>" in content
+            assert "hrTrace" in content
+            assert "<iframe" not in content

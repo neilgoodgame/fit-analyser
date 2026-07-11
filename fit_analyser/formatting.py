@@ -48,3 +48,14 @@ def dur_label(duration_s: int) -> str:
     if duration_s < 3600:
         return f"{duration_s // 60}min"
     return f"{duration_s // 3600}hr"
+
+
+def sport_label(sport: str, sub_sport: str = "") -> str:
+    """
+    Human-readable activity label. FIT devices commonly write sub_sport as
+    "generic" when there's no more specific subtype to report — that's not
+    informative to a reader, so it falls back to the sport name.
+    """
+    if sub_sport and sub_sport != "generic":
+        return sub_sport.replace("_", " ").title()
+    return sport.title()

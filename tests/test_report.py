@@ -9,7 +9,7 @@ import pandas as pd
 
 from fit_analyser.metrics import compute_hdc, compute_pdc
 from fit_analyser.parser import parse_laps
-from fit_analyser.report import _ts, build_html_report
+from fit_analyser.report import _ts, build_html_report, build_multisport_html_report
 
 _FIT_DUMMY = "activity.fit"
 
@@ -311,3 +311,83 @@ class TestRealData:
         )
         assert "zoneBarChart" in html
         assert "Z1" in html
+
+
+def _make_combined_meta() -> dict:
+    return {
+        "start_time": "2025-01-01 08:00:00",
+        "total_elapsed_time": 7200,
+        "total_distance": 40000,
+        "total_calories": 1200,
+        "total_ascent": 100,
+        "total_descent": 100,
+        "total_training_effect": 3.8,
+        "total_anaerobic_training_effect": 0.5,
+        "primary_benefit": "Base",
+        "training_stress_score": 60.0,
+        "avg_hr": 130.5,
+        "max_hr": 165.0,
+        "b20_hr": 145.2,
+        "b60_hr": 138.0,
+    }
+
+
+class TestBuildMultisportHtmlReport:
+    def _segment_reports(self):
+        run_meta = _make_meta(sport="running")
+        run_meta["sub_sport"] = "generic"
+        bike_meta = _make_meta(sport="cycling")
+        bike_meta["sub_sport"] = "indoor_cycling"
+        run_df = _make_df(has_lr=False)
+        bike_df = _make_df(has_lr=True)
+        return [
+            {
+                "meta": run_meta,
+                "html": build_html_report(
+                    _FIT_DUMMY, run_df, [], run_meta, compute_hdc(run_df), compute_pdc(run_df)
+                ),
+            },
+            {
+                "meta": bike_meta,
+                "html": build_html_report(
+                    _FIT_DUMMY, bike_df, [], bike_meta, compute_hdc(bike_df), compute_pdc(bike_df)
+                ),
+            },
+        ]
+
+    def _build(self):
+        return build_multisport_html_report(
+            _FIT_DUMMY, _make_combined_meta(), self._segment_reports()
+        )
+
+    def test_has_doctype_and_closing_tag(self):
+        html = self._build()
+        assert "<!DOCTYPE html>" in html
+        assert "</html>" in html
+
+    def test_embeds_one_iframe_per_segment(self):
+        html = self._build()
+        assert html.count("<iframe") == 2
+
+    def test_generic_sub_sport_falls_back_to_sport_name(self):
+        html = self._build()
+        assert "Running" in html
+        assert "Indoor Cycling" in html
+
+    def test_combined_summary_stats_present(self):
+        html = self._build()
+        assert "Training Stress Score" in html
+        assert "Avg Heart Rate" in html
+        assert "Base" in html
+
+    def test_embedded_segment_html_is_escaped_not_raw(self):
+        html = self._build()
+        # The two segment reports' own <!DOCTYPE html> tags must be escaped inside
+        # srcdoc="...", leaving exactly one raw top-level <!DOCTYPE html>.
+        assert html.count("<!DOCTYPE html>") == 1
+        assert html.count("&lt;!DOCTYPE html&gt;") == 2
+
+    def test_no_segments_still_renders(self):
+        html = build_multisport_html_report(_FIT_DUMMY, _make_combined_meta(), [])
+        assert "<!DOCTYPE html>" in html
+        assert "<iframe" not in html

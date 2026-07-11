@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
-from fit_analyser.formatting import dur_label, fmt_distance, fmt_duration, fmt_pace
+from fit_analyser.formatting import dur_label, fmt_distance, fmt_duration, fmt_pace, sport_label
 from fit_analyser.metrics import best_average, compute_heat_stress
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -208,12 +208,11 @@ def build_html_report(
     ]
 
     sport_icon = "🚴" if sport == "cycling" else "🏃" if sport == "running" else "🏋️"
-    sport_label = sub_sport.replace("_", " ").title() if sub_sport else sport.title()
 
     ctx = {
         # Header
         "sport_icon": sport_icon,
-        "sport_label": sport_label,
+        "sport_label": sport_label(sport, sub_sport),
         "filename": Path(fit_path).stem,
         "fit_filename": Path(fit_path).name,
         "start_time": start_time,
@@ -315,3 +314,60 @@ def build_html_report(
 
     env = Environment(loader=FileSystemLoader(str(_TEMPLATE_DIR)), autoescape=False)
     return env.get_template("report.html.j2").render(**ctx)
+
+
+_SPORT_ICONS = {"running": "🏃", "cycling": "🚴", "swimming": "🏊"}
+
+
+def build_multisport_html_report(fit_path, combined: dict, segment_reports: list[dict]) -> str:
+    """
+    Render a combined multisport report: one summary section (overview,
+    training effect, TSS, whole-activity heart rate stats) followed by one
+    section per sport segment, each embedding that segment's full
+    single-sport report (as produced by build_html_report) in an iframe.
+
+    segment_reports: list of {"meta": <session meta dict>, "html": <str>},
+    one per non-transition sport segment, in chronological order.
+    """
+    segments_ctx = []
+    for sr in segment_reports:
+        m = sr["meta"]
+        sport = m.get("sport", "unknown")
+        sub_sport = m.get("sub_sport", "")
+        segments_ctx.append(
+            {
+                "label": sport_label(sport, sub_sport),
+                "icon": _SPORT_ICONS.get(sport, "🏋️"),
+                "start_time": m.get("start_time", ""),
+                "duration_fmt": fmt_duration(m.get("total_elapsed_time") or 0),
+                "distance_fmt": fmt_distance(m.get("total_distance")),
+                "html": sr["html"],
+            }
+        )
+
+    tss = combined.get("training_stress_score")
+    b20_hr = combined.get("b20_hr")
+    b60_hr = combined.get("b60_hr")
+
+    ctx = {
+        "filename": Path(fit_path).stem,
+        "fit_filename": Path(fit_path).name,
+        "start_time": combined.get("start_time", ""),
+        "duration_fmt": fmt_duration(combined.get("total_elapsed_time")),
+        "distance_fmt": fmt_distance(combined.get("total_distance")),
+        "calories": combined.get("total_calories"),
+        "total_ascent": int(combined["total_ascent"]) if combined.get("total_ascent") else None,
+        "total_descent": int(combined["total_descent"]) if combined.get("total_descent") else None,
+        "aerobic_te": combined.get("total_training_effect"),
+        "anaerobic_te": combined.get("total_anaerobic_training_effect"),
+        "primary_benefit": combined.get("primary_benefit"),
+        "tss": round(tss, 1) if tss is not None else None,
+        "avg_hr": round(combined["avg_hr"], 1) if combined.get("avg_hr") is not None else None,
+        "max_hr": int(combined["max_hr"]) if combined.get("max_hr") is not None else None,
+        "b20_hr": round(b20_hr, 1) if b20_hr is not None and pd.notna(b20_hr) else None,
+        "b60_hr": round(b60_hr, 1) if b60_hr is not None and pd.notna(b60_hr) else None,
+        "segments": segments_ctx,
+    }
+
+    env = Environment(loader=FileSystemLoader(str(_TEMPLATE_DIR)), autoescape=False)
+    return env.get_template("multisport_report.html.j2").render(**ctx)

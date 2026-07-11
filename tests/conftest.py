@@ -9,6 +9,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 CYCLING_INDOOR = FIXTURES / "cycling_indoor.fit"
 RUNNING_TREADMILL = FIXTURES / "running_treadmill.fit"
 RUNNING_OUTDOOR = FIXTURES / "running_outdoor_marathon.fit"
+MULTISPORT = FIXTURES / "multisport.fit"
 
 
 @pytest.fixture(scope="session")
@@ -66,3 +67,22 @@ def marathon_meta(marathon_fit):
     from fit_analyser.parser import get_session_meta
 
     return get_session_meta(marathon_fit)
+
+
+@pytest.fixture(scope="session")
+def multisport_fit():
+    return str(MULTISPORT)
+
+
+@pytest.fixture(scope="session")
+def multisport_df(multisport_fit):
+    from fit_analyser.parser import parse_fit_to_dataframe
+
+    return parse_fit_to_dataframe(multisport_fit)
+
+
+@pytest.fixture(scope="session")
+def multisport_sessions(multisport_fit):
+    from fit_analyser.parser import get_all_sessions_meta
+
+    return get_all_sessions_meta(multisport_fit)

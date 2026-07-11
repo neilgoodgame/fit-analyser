@@ -2,8 +2,33 @@
 
 from __future__ import annotations
 
+import fitparse.base as _fitparse_base
+import fitparse.records as _fitparse_records
 import pandas as pd
 from fitparse import FitFile
+
+from fit_analyser.metrics import best_average
+
+
+# Multisport FIT files commonly redeclare a developer_data_index partway through
+# the file (each sport segment gets its own definition messages). fitparse's
+# add_dev_data_id() unconditionally clears the field registry for that index on
+# every redeclaration, so a later segment referencing a dev field that wasn't
+# re-declared in *that* segment's definition messages crashes parsing with
+# "No such field N for dev_data_index M". Patch it to merge instead of clobber.
+def _merge_add_dev_data_id(message) -> None:
+    dev_data_index = message.get_raw_value("developer_data_index")
+    application_id = message.get_raw_value("application_id")
+    existing = _fitparse_records.DEV_TYPES.get(dev_data_index)
+    fields = existing["fields"] if existing else {}
+    _fitparse_records.DEV_TYPES[dev_data_index] = {
+        "dev_data_index": dev_data_index,
+        "application_id": application_id,
+        "fields": fields,
+    }
+
+
+_fitparse_base.add_dev_data_id = _merge_add_dev_data_id
 
 
 def training_effect_label(te: float | None) -> str | None:
@@ -45,45 +70,208 @@ _BENEFIT_LABELS: dict[int, str] = {
 }
 
 
+def _session_data_to_meta(data: dict) -> dict:
+    aerobic_te = data.get("total_training_effect")
+    anaerobic_te = data.get("total_anaerobic_training_effect")
+    benefit_enum = data.get("unknown_188")
+    primary_benefit = (
+        _BENEFIT_LABELS.get(benefit_enum) if benefit_enum else training_effect_label(aerobic_te)
+    )
+    start_dt = data.get("start_time")
+    elapsed = data.get("total_elapsed_time")
+    end_dt = (
+        start_dt + pd.Timedelta(seconds=elapsed)
+        if start_dt is not None and elapsed is not None
+        else None
+    )
+    return {
+        "sport": str(data.get("sport", "unknown")).lower(),
+        "sub_sport": str(data.get("sub_sport", "")).lower(),
+        "start_time": str(start_dt) if start_dt is not None else "",
+        "start_time_dt": start_dt,
+        "end_time_dt": end_dt,
+        "total_distance": data.get("total_distance"),
+        "total_calories": data.get("total_calories"),
+        "total_elapsed_time": elapsed,
+        "total_ascent": data.get("total_ascent"),
+        "total_descent": data.get("total_descent"),
+        "total_training_effect": aerobic_te,
+        "total_anaerobic_training_effect": anaerobic_te,
+        "primary_benefit": primary_benefit,
+        "training_stress_score": data.get("training_stress_score"),
+        "intensity_factor": data.get("intensity_factor"),
+        "normalized_power": data.get("normalized_power"),
+        "avg_heart_rate": data.get("avg_heart_rate"),
+        "max_heart_rate": data.get("max_heart_rate"),
+    }
+
+
 def get_session_meta(fit_path: str) -> dict:
     """
-    Return session-level metadata from the FIT file.
+    Return session-level metadata for the first session in the FIT file.
 
     Keys: sport, sub_sport, start_time, total_distance, total_calories,
           total_elapsed_time, total_ascent, total_descent,
           total_training_effect, total_anaerobic_training_effect,
           primary_benefit.
     Returns an empty dict if no session message is found or file is missing.
+
+    For multisport files (multiple session messages) use get_all_sessions_meta.
     """
     try:
         fit = FitFile(fit_path)
     except (FileNotFoundError, OSError):
         return {}
     for msg in fit.get_messages("session"):
-        data = {f.name: f.value for f in msg}
-        aerobic_te = data.get("total_training_effect")
-        anaerobic_te = data.get("total_anaerobic_training_effect")
-        benefit_enum = data.get("unknown_188")
-        primary_benefit = (
-            _BENEFIT_LABELS.get(benefit_enum) if benefit_enum else training_effect_label(aerobic_te)
-        )
-        return {
-            "sport": str(data.get("sport", "unknown")).lower(),
-            "sub_sport": str(data.get("sub_sport", "")).lower(),
-            "start_time": str(data.get("start_time", "")),
-            "total_distance": data.get("total_distance"),
-            "total_calories": data.get("total_calories"),
-            "total_elapsed_time": data.get("total_elapsed_time"),
-            "total_ascent": data.get("total_ascent"),
-            "total_descent": data.get("total_descent"),
-            "total_training_effect": aerobic_te,
-            "total_anaerobic_training_effect": anaerobic_te,
-            "primary_benefit": primary_benefit,
-            "training_stress_score": data.get("training_stress_score"),
-            "intensity_factor": data.get("intensity_factor"),
-            "normalized_power": data.get("normalized_power"),
-        }
+        return _session_data_to_meta({f.name: f.value for f in msg})
     return {}
+
+
+def get_all_sessions_meta(fit_path: str) -> list[dict]:
+    """
+    Return session-level metadata for every session message in the FIT file,
+    in file order. A multisport activity (e.g. a triathlon, or a run followed
+    by an indoor bike) records one session per sport, plus a "transition"
+    session for the gaps between them.
+
+    Each dict has the same keys as get_session_meta, plus start_time_dt and
+    end_time_dt (datetime bounds used to slice records/laps by segment).
+    Returns an empty list if no session messages are found or file is missing.
+    """
+    try:
+        fit = FitFile(fit_path)
+    except (FileNotFoundError, OSError):
+        return []
+    return [
+        _session_data_to_meta({f.name: f.value for f in msg}) for msg in fit.get_messages("session")
+    ]
+
+
+def is_multisport(sessions: list[dict]) -> bool:
+    """True if the file contains more than one non-transition sport session."""
+    return len([s for s in sessions if s.get("sport") != "transition"]) > 1
+
+
+def _session_windows(sessions: list[dict]) -> list[tuple]:
+    """
+    Return one (start, end) window per session, chained so that each
+    session's end is the next session's start rather than its own
+    start + total_elapsed_time.
+
+    Session start_time is whole-second resolution while total_elapsed_time
+    has millisecond resolution, so start + elapsed for session i frequently
+    overhangs session i+1's actual start_time by a fraction of a second.
+    Chaining avoids that overlap, which would otherwise misassign records/laps
+    sitting exactly on a sport-transition boundary to the wrong segment.
+    """
+    windows = []
+    for i, s in enumerate(sessions):
+        start = s.get("start_time_dt")
+        end = (
+            sessions[i + 1].get("start_time_dt") if i + 1 < len(sessions) else s.get("end_time_dt")
+        )
+        windows.append((start, end))
+    return windows
+
+
+def split_records_by_session(df: pd.DataFrame, sessions: list[dict]) -> list[pd.DataFrame]:
+    """
+    Slice a record DataFrame into one segment per session, aligned by index
+    to `sessions`, using each session's [start, end) window (see _session_windows).
+    """
+    segments = []
+    for start, end in _session_windows(sessions):
+        if start is None or end is None:
+            segments.append(df.iloc[0:0])
+            continue
+        mask = (df["timestamp"] >= start) & (df["timestamp"] < end)
+        segments.append(df.loc[mask].reset_index(drop=True))
+    return segments
+
+
+def split_series_by_session(series: pd.Series, sessions: list[dict]) -> list[pd.Series]:
+    """Slice a timestamp-indexed Series (e.g. derived accumulated-power) into
+    one segment per session, using the same windows as split_records_by_session."""
+    segments = []
+    for start, end in _session_windows(sessions):
+        if start is None or end is None or series.empty:
+            segments.append(series.iloc[0:0])
+            continue
+        mask = (series.index >= start) & (series.index < end)
+        segments.append(series.loc[mask])
+    return segments
+
+
+def split_laps_by_session(laps: list[dict], sessions: list[dict]) -> list[list[dict]]:
+    """Group laps into one list per session, by matching each lap's start_time
+    against session [start, end) windows (see _session_windows)."""
+    windows = _session_windows(sessions)
+    segments: list[list[dict]] = [[] for _ in sessions]
+    for lap in laps:
+        lap_start = lap.get("start_time")
+        if lap_start is None:
+            continue
+        lap_ts = pd.Timestamp(lap_start)
+        for i, (start, end) in enumerate(windows):
+            if start is not None and end is not None and start <= lap_ts < end:
+                segments[i].append(lap)
+                break
+    return segments
+
+
+def compute_combined_meta(df: pd.DataFrame, sessions: list[dict]) -> dict:
+    """
+    Roll up whole-activity totals for a multisport file: summed distance /
+    calories / ascent / descent across all sessions (including transitions),
+    the final session's training effect (Garmin's TE accumulates across the
+    whole activity, so the last session already reflects the combined value),
+    summed training stress score, and heart rate stats computed from the full,
+    continuous heart_rate series (so best-average windows can correctly span
+    a sport transition).
+    """
+
+    def _sum(key):
+        vals = [s[key] for s in sessions if s.get(key) is not None]
+        return sum(vals) if vals else None
+
+    final = sessions[-1] if sessions else {}
+    start_time = sessions[0].get("start_time", "") if sessions else ""
+
+    if len(df):
+        duration_s = (df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]).total_seconds()
+    else:
+        duration_s = 0.0
+
+    hr = (
+        df.dropna(subset=["heart_rate"]).set_index("timestamp")["heart_rate"]
+        if len(df)
+        else pd.Series(dtype=float)
+    )
+    if hr.empty:
+        avg_hr = max_hr = None
+        b20_hr = b60_hr = float("nan")
+    else:
+        avg_hr = float(hr.mean())
+        max_hr = float(hr.max())
+        b20_hr = best_average(hr, 20)
+        b60_hr = best_average(hr, 60)
+
+    return {
+        "start_time": start_time,
+        "total_elapsed_time": duration_s,
+        "total_distance": _sum("total_distance"),
+        "total_calories": _sum("total_calories"),
+        "total_ascent": _sum("total_ascent"),
+        "total_descent": _sum("total_descent"),
+        "total_training_effect": final.get("total_training_effect"),
+        "total_anaerobic_training_effect": final.get("total_anaerobic_training_effect"),
+        "primary_benefit": final.get("primary_benefit"),
+        "training_stress_score": _sum("training_stress_score"),
+        "avg_hr": avg_hr,
+        "max_hr": max_hr,
+        "b20_hr": b20_hr,
+        "b60_hr": b60_hr,
+    }
 
 
 def decode_lr_balance(raw) -> float | None:
